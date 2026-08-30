@@ -6,6 +6,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
+# Determine default base directory for storage (fallback to /tmp in Vercel/serverless environments)
+IS_VERCEL = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+DEFAULT_STORAGE_BASE = Path("/tmp") if IS_VERCEL else BACKEND_DIR
+
+# Root .env path check
+ENV_FILE_PATH = os.path.join(BACKEND_DIR.parent, ".env")
+if not os.path.exists(ENV_FILE_PATH):
+    ENV_FILE_PATH = os.path.join(BACKEND_DIR, ".env") if os.path.exists(os.path.join(BACKEND_DIR, ".env")) else None
+
+
 class Settings(BaseSettings):
     # Environment & Security
     ENVIRONMENT: str = "development"  # "development" or "production"
@@ -19,12 +29,12 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3000,http://127.0.0.1:3000"
 
     # Storage Directories
-    STORAGE_DIR: str = str(BACKEND_DIR / "storage")
-    UPLOAD_DIR: str = str(BACKEND_DIR / "uploads")
-    PRODUCTS_IMG_DIR: str = str(BACKEND_DIR / "storage" / "products")
-    THUMBNAILS_IMG_DIR: str = str(BACKEND_DIR / "storage" / "thumbnails")
-    TEMP_DIR: str = str(BACKEND_DIR / "storage" / "temp")
-    BACKUPS_DIR: str = str(BACKEND_DIR / "storage" / "backups")
+    STORAGE_DIR: str = str(DEFAULT_STORAGE_BASE / "storage")
+    UPLOAD_DIR: str = str(DEFAULT_STORAGE_BASE / "uploads")
+    PRODUCTS_IMG_DIR: str = str(DEFAULT_STORAGE_BASE / "storage" / "products")
+    THUMBNAILS_IMG_DIR: str = str(DEFAULT_STORAGE_BASE / "storage" / "thumbnails")
+    TEMP_DIR: str = str(DEFAULT_STORAGE_BASE / "storage" / "temp")
+    BACKUPS_DIR: str = str(DEFAULT_STORAGE_BASE / "storage" / "backups")
 
     # Image Optimization & Limits
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB maximum incoming upload file
@@ -38,9 +48,9 @@ class Settings(BaseSettings):
     BACKUP_RETENTION_COUNT: int = 7
     HOSTING_STORAGE_LIMIT_BYTES: int = 10737418240  # 10 GB in bytes (10 * 1024 * 1024 * 1024)
 
-    # Automatically load from a .env file if it exists (project root)
+    # Automatically load from a .env file if it exists
     model_config = SettingsConfigDict(
-        env_file=os.path.join(BACKEND_DIR.parent, ".env"),
+        env_file=ENV_FILE_PATH,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -49,7 +59,8 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
 
     def is_production(self) -> bool:
-        return self.ENVIRONMENT.lower() == "production"
+        return self.ENVIRONMENT.lower() == "production" or os.getenv("VERCEL_ENV") == "production"
+
 
 
 settings = Settings()

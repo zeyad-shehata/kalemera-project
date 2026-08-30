@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+ENV/
+
+# Testing & Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+frontend_dev.log
+
+# Vercel
+.vercel/
+
+# Environment Variables & Local Data
+.env
+.env.local
+.env.*.local
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads & Storage (local runtime only)
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/storage/temp/*
+backend/storage/backups/*
+backend/storage/products/*
+!backend/storage/products/.gitkeep
+backend/storage/thumbnails/*
+!backend/storage/thumbnails/.gitkeep
+
+# IDEs & OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
