@@ -1,16 +1,34 @@
 import os
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.routers import auth, products, categories, orders, notifications, reports, storage
+
+logger = logging.getLogger("kalmera.api")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Ensure database schema exists on application boot
+    try:
+        from app.database import ensure_tables_created
+        await ensure_tables_created()
+    except Exception as e:
+        logger.warning(f"Database lifespan initialization notice: {e}")
+    yield
+
 
 app = FastAPI(
     title="Kalemera Project API",
     description="Backend API for Kalemera E-commerce application",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Enable GZip Compression
@@ -43,11 +61,6 @@ app.add_middleware(
 )
 
 # Global safe exception handler
-from fastapi.responses import JSONResponse
-import logging
-
-logger = logging.getLogger("kalmera.api")
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc: Exception):
     logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
@@ -72,7 +85,6 @@ if os.path.exists(settings.PRODUCTS_IMG_DIR):
 if os.path.exists(settings.THUMBNAILS_IMG_DIR):
     app.mount("/storage/thumbnails", StaticFiles(directory=settings.THUMBNAILS_IMG_DIR), name="thumbnails_storage")
 
-
 # Register routers
 app.include_router(auth.router)
 app.include_router(products.router)
@@ -81,7 +93,6 @@ app.include_router(orders.router)
 app.include_router(notifications.router)
 app.include_router(reports.router)
 app.include_router(storage.router)
-
 
 @app.get("/", tags=["root"])
 @app.get("/api", tags=["root"])
@@ -93,9 +104,7 @@ async def root():
         "health_check": "/api/health",
     }
 
-
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["health"])
 @app.get("/api/health", status_code=status.HTTP_200_OK, tags=["health"])
 async def health_check():
     return {"status": "healthy"}
-
