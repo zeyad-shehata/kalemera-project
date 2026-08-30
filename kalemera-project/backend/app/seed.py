@@ -12,27 +12,106 @@ from app.models import User, UserRole, Category, Product, ProductVariant
 from app.security import get_password_hash
 
 
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
 def create_compressed_placeholder(filename: str, label: str, bg_color: str) -> str:
-    """Generates a compressed placeholder image using Pillow."""
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    file_path = os.path.join(settings.UPLOAD_DIR, filename)
+    """Generates a compressed placeholder image using Pillow if directory is writable."""
+    try:
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        file_path = os.path.join(settings.UPLOAD_DIR, filename)
 
-    # Create a new RGB image
-    img = Image.new("RGB", (400, 300), color=bg_color)
-    draw = ImageDraw.Draw(img)
-
-    # Draw simple text
-    draw.text((20, 130), label, fill="white")
-
-    # Compress image (JPEG quality 75) and save
-    img.save(file_path, "JPEG", quality=75, optimize=True)
-
-    # Verify file is within 2MiB limit
-    file_size = os.path.getsize(file_path)
-    if file_size > settings.MAX_UPLOAD_SIZE:
-        print(f"Warning: Seeded image {filename} is too large ({file_size} bytes)")
+        if not os.path.exists(file_path):
+            img = Image.new("RGB", (400, 300), color=bg_color)
+            draw = ImageDraw.Draw(img)
+            draw.text((20, 130), label, fill="white")
+            img.save(file_path, "JPEG", quality=75, optimize=True)
+    except Exception:
+        pass
 
     return f"/uploads/{filename}"
+
+
+async def seed_initial_data_if_empty(session: AsyncSession):
+    """Safely seeds default categories, products, and default users if categories table is empty."""
+    result = await session.execute(select(func.count()).select_from(Category))
+    cat_count = result.scalar() or 0
+    if cat_count > 0:
+        return  # Already populated
+
+    # 1. Create Default Users
+    admin_phone = "01000000001"
+    customer_phone = "01000000002"
+
+    admin_res = await session.execute(select(User).where(User.phone == admin_phone))
+    if not admin_res.scalars().first():
+        admin = User(
+            phone=admin_phone,
+            hashed_password=get_password_hash("admin123"),
+            full_name="كالميرا أدمن / Kalmera Admin",
+            role=UserRole.ADMIN,
+        )
+        session.add(admin)
+
+    cust_res = await session.execute(select(User).where(User.phone == customer_phone))
+    if not cust_res.scalars().first():
+        customer = User(
+            phone=customer_phone,
+            hashed_password=get_password_hash("customer123"),
+            full_name="عميل تجريبي / Demo Customer",
+            role=UserRole.CUSTOMER,
+        )
+        session.add(customer)
+
+    # 2. Create Categories
+    category_records = {}
+    for cat_name in categories_to_seed:
+        cat = Category(name=cat_name)
+        session.add(cat)
+        await session.flush()
+        category_records[cat_name] = cat.id
+
+    # 3. Create Products and Variants
+    for prod in products_data:
+        image_path = create_compressed_placeholder(
+            prod["img_filename"], prod["img_label"], prod["img_color"]
+        )
+
+        full_name = prod["name"]
+        name_ar, name_en = full_name, full_name
+        if " - " in full_name:
+            parts = full_name.split(" - ", 1)
+            name_en = parts[0].strip()
+            name_ar = parts[1].strip()
+
+        full_desc = prod.get("description", "")
+        desc_ar, desc_en = full_desc, full_desc
+        if full_desc and " / " in full_desc:
+            parts = full_desc.split(" / ", 1)
+            desc_ar = parts[0].strip()
+            desc_en = parts[1].strip()
+
+        new_product = Product(
+            name=name_ar,
+            name_en=name_en,
+            description=desc_ar or None,
+            description_en=desc_en or None,
+            price=prod["price"],
+            stock=prod["stock"],
+            category_id=category_records[prod["category"]],
+            image_path=image_path,
+        )
+
+        if "variants" in prod:
+            for size_name, size_price in prod["variants"]:
+                new_product.variants.append(
+                    ProductVariant(name=size_name, price=size_price)
+                )
+
+        session.add(new_product)
+
+    await session.commit()
+    print("Initial Kalmera menu data seeded successfully.")
 
 
 async def seed_data():
@@ -44,6 +123,8 @@ async def seed_data():
         await conn.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as session:
+        await seed_initial_data_if_empty(session)
+
         # 1. Create Default Users
         admin_phone = "01000000001"
         customer_phone = "01000000002"

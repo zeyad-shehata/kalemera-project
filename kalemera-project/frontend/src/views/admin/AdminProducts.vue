@@ -11,8 +11,8 @@
     </div>
 
     <!-- Products Table -->
-    <v-card class="elevation-6 rounded-xl border-bronze bg-surface">
-      <v-table class="bg-transparent text-copper-muted">
+    <v-card class="elevation-6 rounded-xl border-bronze bg-surface overflow-x-auto">
+      <v-table class="table-responsive bg-transparent text-copper-muted">
         <thead>
           <tr>
             <th class="font-weight-bold text-primary">{{ t('imageHeader') }}</th>

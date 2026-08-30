@@ -16,21 +16,24 @@ const api = axios.create({
   },
 })
 
-// Response interceptor to handle errors globally (e.g. 401 Unauthorized)
+// Response interceptor to handle errors globally (e.g. 401 Unauthorized on protected routes)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Clear local session state (can trigger store action to reset user state)
-      // Redirect to login if not already there
-      const currentRoute = router.currentRoute.value.path
-      if (currentRoute !== '/login' && currentRoute !== '/register') {
-        router.push('/login')
+      const url = error.config?.url || ''
+      // Do not redirect to login during initial guest session check (/api/auth/me) or auth forms
+      if (!url.includes('/api/auth/me') && !url.includes('/api/auth/login') && !url.includes('/api/auth/register')) {
+        const currentRoute = router.currentRoute.value.path
+        if (currentRoute !== '/login' && currentRoute !== '/register') {
+          router.push('/login')
+        }
       }
     }
     return Promise.reject(error)
   }
 )
+
 
 export default api
 export { API_BASE_URL }

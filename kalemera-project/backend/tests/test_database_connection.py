@@ -65,3 +65,29 @@ def test_models_metadata_tables():
         "notifications",
     }
     assert expected.issubset(table_names), f"Missing tables: {expected - table_names}"
+
+
+@pytest.mark.asyncio
+async def test_seed_initial_data_if_empty(db_session):
+    """Verifies that seed_initial_data_if_empty populates categories, products, and default users."""
+    from app.seed import seed_initial_data_if_empty
+    from sqlalchemy import select, func
+    from app.models import Category, Product, User
+
+    await seed_initial_data_if_empty(db_session)
+
+    # Check categories
+    cat_res = await db_session.execute(select(func.count()).select_from(Category))
+    cat_count = cat_res.scalar()
+    assert cat_count >= 8, f"Expected at least 8 categories, got {cat_count}"
+
+    # Check products
+    prod_res = await db_session.execute(select(func.count()).select_from(Product))
+    prod_count = prod_res.scalar()
+    assert prod_count > 0, "Expected products to be seeded"
+
+    # Check users
+    user_res = await db_session.execute(select(func.count()).select_from(User))
+    user_count = user_res.scalar()
+    assert user_count >= 2, "Expected at least admin and customer users"
+
