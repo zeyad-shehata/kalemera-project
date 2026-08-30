@@ -1,0 +1,26 @@
+# Exclude Node.js dependencies and builds
+**/node_modules
+**/dist
+**/.env
+**/.git
+**/.github
+**/.vscode
+
+# Exclude Python virtual environment and cache
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/.venv
+**/venv
+**/env
+**/tests
+
+# Exclude uploads volume data
+**/uploads
+
+# Exclude local SQLite database files
+**/*.db
+**/*.sqlite
+**/*.sqlite3

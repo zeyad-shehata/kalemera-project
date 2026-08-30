@@ -1,0 +1,63 @@
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models import Order, User, UserRole
+from app.schemas import OrderCreate, OrderResponse, OrderStatusUpdate
+from app.security import get_current_user, admin_required
+from app.repositories.order_repository import order_repository
+from app.services.order_service import order_service
+
+router = APIRouter(prefix="/api/orders", tags=["orders"])
+
+@router.post("/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+async def create_order(
+    order_in: OrderCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await order_service.create_order(db, current_user, order_in)
+
+@router.get("/", response_model=List[OrderResponse])
+async def list_orders(
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+):
+    is_admin = (current_user.role == UserRole.ADMIN)
+    return await order_repository.list_orders(db, user_id=current_user.id, is_admin=is_admin)
+
+@router.get("/{order_id}", response_model=OrderResponse)
+async def get_order(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    order = await order_repository.get_by_id(db, order_id)
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found."
+        )
+
+    if current_user.role != UserRole.ADMIN and order.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this order.",
+        )
+    return order
+
+@router.post("/{order_id}/cancel", response_model=OrderResponse)
+async def cancel_order(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await order_service.cancel_order(db, current_user, order_id)
+
+@router.put("/{order_id}/status", response_model=OrderResponse)
+async def update_order_status(
+    order_id: int,
+    status_update: OrderStatusUpdate,
+    admin_user=Depends(admin_required),
+    db: AsyncSession = Depends(get_db),
+):
+    return await order_service.update_order_status(db, order_id, status_update)

@@ -1,0 +1,154 @@
+from typing import List, Optional
+from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import Order, OrderItem, Product, User, UserRole, OrderStatus, Notification
+from app.repositories.order_repository import order_repository
+from app.repositories.product_repository import product_repository
+from app.repositories.notification_repository import notification_repository
+from app.schemas import OrderCreate, OrderStatusUpdate
+
+class OrderService:
+    async def create_order(
+        self, db: AsyncSession, current_user: User, order_in: OrderCreate
+    ) -> Order:
+        if not order_in.items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Order must contain at least one item.",
+            )
+
+        total_price = 0.0
+        order_items_to_create = []
+
+        for item in order_in.items:
+            product = await product_repository.get_by_id(db, item.product_id)
+            if not product:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Product with ID {item.product_id} not found.",
+                )
+
+            if product.stock < item.quantity:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Not enough stock for product '{product.name}'. Available: {product.stock}, Requested: {item.quantity}.",
+                )
+
+            # Deduct stock
+            product.stock -= item.quantity
+
+            # Variant and price calculation
+            variant_name_snapshot = None
+            variant_id = item.variant_id
+
+            if variant_id is not None:
+                variant = next((v for v in product.variants if v.id == variant_id), None)
+                if not variant:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Variant with ID {variant_id} does not exist for product '{product.name}'.",
+                    )
+                item_price = float(variant.price)
+                variant_name_snapshot = variant.name
+            elif product.variants and len(product.variants) > 0:
+                # Product has variants, default to first variant
+                variant = product.variants[0]
+                variant_id = variant.id
+                item_price = float(variant.price)
+                variant_name_snapshot = variant.name
+            else:
+                item_price = float(product.price)
+
+            subtotal = item_price * item.quantity
+            total_price += subtotal
+
+            order_item = OrderItem(
+                product_id=product.id,
+                product_name_snapshot=product.name,
+                product_name_en_snapshot=product.name_en or product.name,
+                variant_id=variant_id,
+                variant_name_snapshot=variant_name_snapshot,
+                price_snapshot=item_price,
+                quantity=item.quantity,
+                subtotal=subtotal
+            )
+            order_items_to_create.append(order_item)
+
+        new_order = await order_repository.create(
+            db=db,
+            user_id=current_user.id,
+            total_price=total_price,
+            items=order_items_to_create
+        )
+
+        # Notify buyer
+        await notification_repository.create(
+            db=db,
+            user_id=current_user.id,
+            message=f"Order #{new_order.id} has been placed successfully. Total: {total_price:.2f} EGP."
+        )
+
+        await db.commit()
+        return await order_repository.get_by_id(db, new_order.id)
+
+    async def cancel_order(
+        self, db: AsyncSession, current_user: User, order_id: int
+    ) -> Order:
+        order = await order_repository.get_by_id(db, order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Order not found."
+            )
+
+        if current_user.role != UserRole.ADMIN and order.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to cancel this order.",
+            )
+
+        if order.status != OrderStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Order cannot be cancelled. Current status: {order.status.value}.",
+            )
+
+        order.status = OrderStatus.CANCELLED
+        await order_repository.restore_stock_for_order(db, order)
+
+        await notification_repository.create(
+            db=db,
+            user_id=order.user_id,
+            message=f"Order #{order.id} has been cancelled. Stock has been restored."
+        )
+
+        await db.commit()
+        return await order_repository.get_by_id(db, order.id)
+
+    async def update_order_status(
+        self, db: AsyncSession, order_id: int, status_update: OrderStatusUpdate
+    ) -> Order:
+        order = await order_repository.get_by_id(db, order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Order not found."
+            )
+
+        if (
+            status_update.status == OrderStatus.CANCELLED
+            and order.status != OrderStatus.CANCELLED
+        ):
+            await order_repository.restore_stock_for_order(db, order)
+
+        order.status = status_update.status
+
+        await notification_repository.create(
+            db=db,
+            user_id=order.user_id,
+            message=f"Order #{order.id} status has been updated to: {status_update.status.value}."
+        )
+
+        await db.commit()
+        return await order_repository.get_by_id(db, order.id)
+
+order_service = OrderService()
