@@ -5,8 +5,13 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: 'Cairo', 'Tajawal', 'Outfit', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -16,6 +21,28 @@ body {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.v-application {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Ensure containers and grids never force horizontal scrolling */
+.v-container {
+  max-width: 100%;
+}
+
+/* Responsive tables */
+.table-responsive,
+.v-table__wrapper {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
 
 /* Utility: hide scrollbar but keep functionality */
@@ -28,7 +55,14 @@ body {
 }
 
 /* Prevent image overflow */
-img {
+img,
+.v-img {
   max-width: 100%;
   height: auto;
+}
+
+/* Text wrapping protection */
+.text-break-word {
+  word-break: break-word;
+  overflow-wrap: break-word;
 }

@@ -93,15 +93,25 @@ _tables_initialized = False
 
 
 async def ensure_tables_created():
-    """Idempotently creates all database tables and enum types if they do not exist."""
+    """Idempotently creates all database tables and seeds default menu data if empty."""
     global _tables_initialized
     if not _tables_initialized:
         # Import models so Base.metadata is fully populated
         import app.models  # noqa: F401
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
+        # Safely seed initial categories and products if database is empty
+        try:
+            from app.seed import seed_initial_data_if_empty
+            async with AsyncSessionLocal() as session:
+                await seed_initial_data_if_empty(session)
+        except Exception as seed_err:
+            logger.warning(f"Initial seed check notice: {seed_err}")
+
         _tables_initialized = True
-        logger.info("Database schema verified / initialized successfully.")
+        logger.info("Database schema verified and initialized successfully.")
+
 
 
 # Dependency to get db session

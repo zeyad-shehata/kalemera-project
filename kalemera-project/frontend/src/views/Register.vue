@@ -1,12 +1,12 @@
 <template>
-  <v-container class="fill-height" fluid>
-    <v-row align="center" justify="center">
-      <v-col cols="12" sm="8" md="4">
-        <v-card class="elevation-12 rounded-lg pa-6">
+  <v-container class="fill-height py-6 py-sm-12 px-3 px-sm-6" fluid>
+    <v-row align="center" justify="center" class="ma-0 w-100">
+      <v-col cols="12" sm="8" md="5" lg="4" class="pa-0 pa-sm-3">
+        <v-card class="elevation-16 rounded-xl pa-4 pa-sm-6 bg-surface border-bronze mx-auto" max-width="460">
           <v-card-item class="text-center">
             <v-icon color="secondary" size="x-large" class="mb-2">mdi-account-plus-outline</v-icon>
-            <v-card-title class="text-h5 font-weight-bold">{{ t('createAccount') }}</v-card-title>
-            <v-card-subtitle>{{ t('joinToday') }}</v-card-subtitle>
+            <v-card-title class="text-h4 font-weight-black text-bronze-gradient mb-1">{{ t('createAccount') }}</v-card-title>
+            <v-card-subtitle class="text-copper-muted">{{ t('joinToday') }}</v-card-subtitle>
           </v-card-item>
 
           <v-card-text>
@@ -20,6 +20,7 @@
                 required
                 variant="outlined"
                 class="mb-3"
+                color="primary"
               ></v-text-field>
 
               <v-text-field

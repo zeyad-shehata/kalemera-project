@@ -89,7 +89,7 @@
       </v-row>
 
       <!-- Admin Orders Management Section -->
-      <v-card class="elevation-6 rounded-xl pa-6 bg-surface border-bronze mt-6">
+      <v-card class="elevation-6 rounded-xl pa-6 bg-surface border-bronze mt-6 overflow-x-auto">
         <div class="d-flex align-center justify-space-between mb-4">
           <div>
             <h3 class="text-h6 font-weight-bold text-bronze-gradient">{{ t('manageOrders') }}</h3>
@@ -97,7 +97,7 @@
           </div>
         </div>
 
-        <v-table class="bg-transparent text-copper-muted">
+        <v-table class="table-responsive bg-transparent text-copper-muted">
           <thead>
             <tr>
               <th class="text-left font-weight-bold text-primary">{{ t('orderHeader') }}</th>

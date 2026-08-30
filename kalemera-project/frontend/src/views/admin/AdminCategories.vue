@@ -6,8 +6,8 @@
     </div>
 
     <!-- Categories Card List -->
-    <v-card class="elevation-3 rounded-lg border">
-      <v-table>
+    <v-card class="elevation-3 rounded-lg border overflow-x-auto">
+      <v-table class="table-responsive">
         <thead>
           <tr>
             <th class="font-weight-bold" style="width: 100px;">{{ t('idLabel') }}</th>

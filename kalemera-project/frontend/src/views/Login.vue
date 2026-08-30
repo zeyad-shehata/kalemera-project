@@ -1,8 +1,8 @@
 <template>
-  <v-container class="fill-height py-12" fluid>
-    <v-row align="center" justify="center">
-      <v-col cols="12" sm="8" md="5" lg="4">
-        <v-card class="elevation-16 rounded-xl pa-6 bg-surface border-bronze">
+  <v-container class="fill-height py-6 py-sm-12 px-3 px-sm-6" fluid>
+    <v-row align="center" justify="center" class="ma-0 w-100">
+      <v-col cols="12" sm="8" md="5" lg="4" class="pa-0 pa-sm-3">
+        <v-card class="elevation-16 rounded-xl pa-4 pa-sm-6 bg-surface border-bronze mx-auto" max-width="460">
           <v-card-item class="text-center">
             <v-img src="/logo.jpg" alt="Logo" max-width="120" class="mx-auto mb-3 logo-badge-img" contain></v-img>
             <v-card-title class="text-h4 font-weight-black text-bronze-gradient mb-1">{{ t('login') }}</v-card-title>

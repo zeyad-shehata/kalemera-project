@@ -16,8 +16,8 @@
     <v-row v-else>
       <!-- Cart Items Table -->
       <v-col cols="12" md="8">
-        <v-card class="elevation-3 rounded-lg overflow-hidden">
-          <v-table>
+        <v-card class="elevation-3 rounded-lg overflow-hidden overflow-x-auto">
+          <v-table class="table-responsive">
             <thead>
               <tr>
                 <th class="text-left font-weight-bold">{{ t('product') }}</th>
