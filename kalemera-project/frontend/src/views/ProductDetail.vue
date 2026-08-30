@@ -57,8 +57,8 @@
           <v-divider class="mb-4"></v-divider>
  
           <!-- Price & Stock -->
-          <div class="d-flex align-center mb-6">
-            <span class="text-h4 text-primary font-weight-black mr-6">{{ displayPrice }} EGP</span>
+          <div class="d-flex align-center flex-wrap ga-2 mb-6">
+            <span class="text-h4 text-primary font-weight-black mr-4">{{ displayPrice }} EGP</span>
             <v-chip :color="stockColor" size="small" class="font-weight-bold">
               {{ stockText }}
             </v-chip>

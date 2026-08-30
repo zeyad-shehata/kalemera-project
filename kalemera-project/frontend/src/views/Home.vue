@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Hero Banner Section -->
-    <v-sheet color="#141210" class="py-10 px-4 position-relative border-b-bronze hero-banner overflow-hidden">
+    <v-sheet color="#141210" class="py-8 py-sm-10 px-2 px-sm-4 position-relative border-b-bronze hero-banner overflow-hidden">
       <v-container>
         <v-row align="center" justify="center" class="text-center">
           <v-col cols="12" md="8">
@@ -9,30 +9,30 @@
             <v-img
               src="/logo.jpg"
               alt="Kalmera Badge"
-              max-width="160"
+              max-width="140"
               class="mx-auto mb-4 hero-logo-badge"
               contain
             ></v-img>
             
-            <h1 class="text-h3 text-sm-h2 font-weight-black text-bronze-gradient mb-2">
+            <h1 class="text-h4 text-sm-h2 font-weight-black text-bronze-gradient mb-2">
               {{ localeStore.currentLocale === 'ar' ? 'كال ميرا' : 'KALMERA' }}
             </h1>
-            <p class="text-h6 text-copper-muted font-weight-medium mb-6">
+            <p class="text-subtitle-1 text-sm-h6 text-copper-muted font-weight-medium mb-6">
               {{ localeStore.currentLocale === 'ar' ? 'مطعم | ماركت' : 'RESTAURANT & MARKET' }}
             </p>
 
             <!-- Feature Tags -->
-            <div class="d-flex flex-wrap justify-center ga-3 mb-6">
-              <v-chip color="primary" variant="flat" size="large" prepend-icon="mdi-silverware-fork-knife" class="font-weight-bold">
+            <div class="d-flex flex-wrap justify-center ga-2 ga-sm-3 mb-6">
+              <v-chip color="primary" variant="flat" size="small" size-sm="large" prepend-icon="mdi-silverware-fork-knife" class="font-weight-bold">
                 {{ localeStore.t('restaurant') }}
               </v-chip>
-              <v-chip color="secondary" variant="flat" size="large" prepend-icon="mdi-shopping" class="font-weight-bold">
+              <v-chip color="secondary" variant="flat" size="small" size-sm="large" prepend-icon="mdi-shopping" class="font-weight-bold">
                 {{ localeStore.t('market') }}
               </v-chip>
-              <v-chip color="accent" variant="outlined" size="large" prepend-icon="mdi-coffee" class="font-weight-bold text-primary">
+              <v-chip color="accent" variant="outlined" size="small" size-sm="large" prepend-icon="mdi-coffee" class="font-weight-bold text-primary">
                 {{ localeStore.t('cafe') }}
               </v-chip>
-              <v-chip color="primary" variant="outlined" size="large" prepend-icon="mdi-fire" class="font-weight-bold">
+              <v-chip color="primary" variant="outlined" size="small" size-sm="large" prepend-icon="mdi-fire" class="font-weight-bold">
                 {{ localeStore.t('grills') }}
               </v-chip>
             </div>
@@ -41,9 +41,9 @@
       </v-container>
     </v-sheet>
 
-    <v-container class="py-8">
+    <v-container class="py-6 py-sm-8 px-3 px-sm-6">
       <!-- Search Bar (Always Visible) -->
-      <v-row class="mb-8" justify="center">
+      <v-row class="mb-6 mb-sm-8" justify="center">
         <v-col cols="12" md="8">
           <v-text-field
             v-model="searchQuery"
@@ -68,9 +68,9 @@
 
       <!-- State 1: Categories View (Default) -->
       <div v-else-if="selectedCategory === null && !searchQuery">
-        <div class="text-center mb-8">
-          <h2 class="text-h4 font-weight-black text-bronze-gradient mb-2">{{ localeStore.t('exploreMenu') }}</h2>
-          <p class="text-subtitle-1 text-copper-muted">{{ localeStore.t('exploreSub') }}</p>
+        <div class="text-center mb-6 mb-sm-8">
+          <h2 class="text-h5 text-sm-h4 font-weight-black text-bronze-gradient mb-2">{{ localeStore.t('exploreMenu') }}</h2>
+          <p class="text-body-2 text-sm-subtitle-1 text-copper-muted">{{ localeStore.t('exploreSub') }}</p>
         </div>
 
         <v-row>
@@ -81,20 +81,21 @@
             sm="4"
             md="3"
             lg="3"
+            class="pa-2 pa-sm-3"
           >
             <v-card
-              class="category-card rounded-xl overflow-hidden elevation-6 bg-surface border-bronze text-center py-6 px-4 cursor-pointer d-flex flex-column align-center justify-center fill-height"
+              class="category-card rounded-xl overflow-hidden elevation-6 bg-surface border-bronze text-center py-4 py-sm-6 px-2 px-sm-4 cursor-pointer d-flex flex-column align-center justify-center fill-height"
               @click="selectCategory(cat)"
             >
-              <v-avatar color="primary" variant="tonal" size="64" class="mb-4">
-                <v-icon size="36" color="primary">{{ getCategoryIcon(cat.name) }}</v-icon>
+              <v-avatar color="primary" variant="tonal" size="48" size-sm="64" class="mb-2 mb-sm-4">
+                <v-icon size="28" size-sm="36" color="primary">{{ getCategoryIcon(cat.name) }}</v-icon>
               </v-avatar>
               
-              <div class="text-h6 font-weight-black text-bronze-gradient mb-3">
+              <div class="text-subtitle-2 text-sm-h6 font-weight-black text-bronze-gradient mb-2 text-break-word line-clamp-2">
                 {{ getCategoryDisplayName(cat.name) }}
               </div>
               
-              <v-chip color="secondary" size="x-small" class="font-weight-bold text-primary px-3">
+              <v-chip color="secondary" size="x-small" class="font-weight-bold text-primary px-2 px-sm-3">
                 {{ cat.product_count || 0 }} {{ localeStore.currentLocale === 'ar' ? 'منتج' : 'Items' }}
               </v-chip>
             </v-card>

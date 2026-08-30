@@ -32,147 +32,23 @@ def create_compressed_placeholder(filename: str, label: str, bg_color: str) -> s
     return f"/uploads/{filename}"
 
 
-async def seed_initial_data_if_empty(session: AsyncSession):
-    """Safely seeds default categories, products, and default users if categories table is empty."""
-    result = await session.execute(select(func.count()).select_from(Category))
-    cat_count = result.scalar() or 0
-    if cat_count > 0:
-        return  # Already populated
+CATEGORIES_TO_SEED = [
+    "Pizza",
+    "Crepe",
+    "Burgers",
+    "Meals",
+    "Salads",
+    "Rice & Pasta",
+    "Chicken Sandwiches",
+    "Meat Sandwiches",
+    "Sauces",
+    "Potato",
+    "Drinks",
+    "Market"
+]
 
-    # 1. Create Default Users
-    admin_phone = "01000000001"
-    customer_phone = "01000000002"
-
-    admin_res = await session.execute(select(User).where(User.phone == admin_phone))
-    if not admin_res.scalars().first():
-        admin = User(
-            phone=admin_phone,
-            hashed_password=get_password_hash("admin123"),
-            full_name="كالميرا أدمن / Kalmera Admin",
-            role=UserRole.ADMIN,
-        )
-        session.add(admin)
-
-    cust_res = await session.execute(select(User).where(User.phone == customer_phone))
-    if not cust_res.scalars().first():
-        customer = User(
-            phone=customer_phone,
-            hashed_password=get_password_hash("customer123"),
-            full_name="عميل تجريبي / Demo Customer",
-            role=UserRole.CUSTOMER,
-        )
-        session.add(customer)
-
-    # 2. Create Categories
-    category_records = {}
-    for cat_name in categories_to_seed:
-        cat = Category(name=cat_name)
-        session.add(cat)
-        await session.flush()
-        category_records[cat_name] = cat.id
-
-    # 3. Create Products and Variants
-    for prod in products_data:
-        image_path = create_compressed_placeholder(
-            prod["img_filename"], prod["img_label"], prod["img_color"]
-        )
-
-        full_name = prod["name"]
-        name_ar, name_en = full_name, full_name
-        if " - " in full_name:
-            parts = full_name.split(" - ", 1)
-            name_en = parts[0].strip()
-            name_ar = parts[1].strip()
-
-        full_desc = prod.get("description", "")
-        desc_ar, desc_en = full_desc, full_desc
-        if full_desc and " / " in full_desc:
-            parts = full_desc.split(" / ", 1)
-            desc_ar = parts[0].strip()
-            desc_en = parts[1].strip()
-
-        new_product = Product(
-            name=name_ar,
-            name_en=name_en,
-            description=desc_ar or None,
-            description_en=desc_en or None,
-            price=prod["price"],
-            stock=prod["stock"],
-            category_id=category_records[prod["category"]],
-            image_path=image_path,
-        )
-
-        if "variants" in prod:
-            for size_name, size_price in prod["variants"]:
-                new_product.variants.append(
-                    ProductVariant(name=size_name, price=size_price)
-                )
-
-        session.add(new_product)
-
-    await session.commit()
-    print("Initial Kalmera menu data seeded successfully.")
-
-
-async def seed_data():
-    print("Re-creating database tables and seeding Kalmera menu...")
-
-    # Drop and re-create schema to ensure all schema migrations/updates are applied cleanly
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-
-    async with AsyncSessionLocal() as session:
-        await seed_initial_data_if_empty(session)
-
-        # 1. Create Default Users
-        admin_phone = "01000000001"
-        customer_phone = "01000000002"
-
-        admin = User(
-            phone=admin_phone,
-            hashed_password=get_password_hash("admin123"),
-            full_name="كالميرا أدمن / Kalmera Admin",
-            role=UserRole.ADMIN,
-        )
-        session.add(admin)
-        print(f"Admin user created ({admin_phone} / admin123)")
-
-        customer = User(
-            phone=customer_phone,
-            hashed_password=get_password_hash("customer123"),
-            full_name="عميل تجريبي / Demo Customer",
-            role=UserRole.CUSTOMER,
-        )
-        session.add(customer)
-        print(f"Customer user created ({customer_phone} / customer123)")
-
-        # 2. Create Categories
-        categories_to_seed = [
-            "Pizza",
-            "Crepe",
-            "Burgers",
-            "Meals",
-            "Salads",
-            "Rice & Pasta",
-            "Chicken Sandwiches",
-            "Meat Sandwiches",
-            "Sauces",
-            "Potato",
-            "Drinks",
-            "Market"
-        ]
-        
-        category_records = {}
-        for cat_name in categories_to_seed:
-            cat = Category(name=cat_name)
-            session.add(cat)
-            await session.flush()
-            category_records[cat_name] = cat.id
-            print(f"Category '{cat_name}' created")
-
-        # 3. Create Products List
-        products_data = [
+# Products List
+PRODUCTS_DATA = [
             # ==== 1. PIZZA (16 items) ====
             {
                 "name": "Margherita Pizza - مارجريتا",
@@ -1150,50 +1026,98 @@ async def seed_data():
             }
         ]
 
-        for prod in products_data:
-            # Generate compressed placeholder image
-            image_path = create_compressed_placeholder(
-                prod["img_filename"], prod["img_label"], prod["img_color"]
-            )
+async def seed_initial_data_if_empty(session: AsyncSession):
+    """Safely seeds default categories, products, and default users if categories table is empty."""
+    result = await session.execute(select(func.count()).select_from(Category))
+    cat_count = result.scalar() or 0
+    if cat_count > 0:
+        return  # Already populated
 
-            full_name = prod["name"]
-            name_ar, name_en = full_name, full_name
-            if " - " in full_name:
-                parts = full_name.split(" - ", 1)
-                name_en = parts[0].strip()
-                name_ar = parts[1].strip()
+    # 1. Create Default Users if not exist
+    admin_phone = "01000000001"
+    customer_phone = "01000000002"
 
-            full_desc = prod.get("description", "")
-            desc_ar, desc_en = full_desc, full_desc
-            if full_desc and " / " in full_desc:
-                parts = full_desc.split(" / ", 1)
-                desc_ar = parts[0].strip()
-                desc_en = parts[1].strip()
+    admin_res = await session.execute(select(User).where(User.phone == admin_phone))
+    if not admin_res.scalars().first():
+        admin = User(
+            phone=admin_phone,
+            hashed_password=get_password_hash("admin123"),
+            full_name="كالميرا أدمن / Kalmera Admin",
+            role=UserRole.ADMIN,
+        )
+        session.add(admin)
 
-            new_product = Product(
-                name=name_ar,
-                name_en=name_en,
-                description=desc_ar or None,
-                description_en=desc_en or None,
-                price=prod["price"],
-                stock=prod["stock"],
-                category_id=category_records[prod["category"]],
-                image_path=image_path,
-            )
-            
-            # Add variants if applicable
-            if "variants" in prod:
-                for size_name, size_price in prod["variants"]:
-                    new_product.variants.append(
-                        ProductVariant(name=size_name, price=size_price)
-                    )
+    cust_res = await session.execute(select(User).where(User.phone == customer_phone))
+    if not cust_res.scalars().first():
+        customer = User(
+            phone=customer_phone,
+            hashed_password=get_password_hash("customer123"),
+            full_name="عميل تجريبي / Demo Customer",
+            role=UserRole.CUSTOMER,
+        )
+        session.add(customer)
 
-            session.add(new_product)
-            print(f"Product created: {prod['img_label']}")
+    # 2. Create Categories
+    category_records = {}
+    for cat_name in CATEGORIES_TO_SEED:
+        cat = Category(name=cat_name)
+        session.add(cat)
+        await session.flush()
+        category_records[cat_name] = cat.id
 
-        await session.commit()
-    print("Database seeding completed successfully.")
+    # 3. Create Products and Variants
+    for prod in PRODUCTS_DATA:
+        image_path = create_compressed_placeholder(
+            prod["img_filename"], prod["img_label"], prod["img_color"]
+        )
+
+        full_name = prod["name"]
+        name_ar, name_en = full_name, full_name
+        if " - " in full_name:
+            parts = full_name.split(" - ", 1)
+            name_en = parts[0].strip()
+            name_ar = parts[1].strip()
+
+        full_desc = prod.get("description", "")
+        desc_ar, desc_en = full_desc, full_desc
+        if full_desc and " / " in full_desc:
+            parts = full_desc.split(" / ", 1)
+            desc_ar = parts[0].strip()
+            desc_en = parts[1].strip()
+
+        new_product = Product(
+            name=name_ar,
+            name_en=name_en,
+            description=desc_ar or None,
+            description_en=desc_en or None,
+            price=prod["price"],
+            stock=prod["stock"],
+            category_id=category_records[prod["category"]],
+            image_path=image_path,
+        )
+
+        if "variants" in prod:
+            for size_name, size_price in prod["variants"]:
+                new_product.variants.append(
+                    ProductVariant(name=size_name, price=size_price)
+                )
+
+        session.add(new_product)
+
+    await session.commit()
+    print("Initial Kalmera menu data seeded successfully.")
+
+
+async def seed_data():
+    print("Re-creating database tables and seeding Kalmera menu...")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncSessionLocal() as session:
+        await seed_initial_data_if_empty(session)
 
 
 if __name__ == "__main__":
     asyncio.run(seed_data())
+
