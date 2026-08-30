@@ -12,7 +12,8 @@ logger = logging.getLogger("kalemera.database")
 
 def prepare_database_connection(raw_url: str):
     """Normalizes database connection string and prepares connect_args for asyncpg/sqlite.
-    Handles Neon / cloud PostgreSQL URLs containing incompatible query parameters (sslmode, channel_binding, etc.).
+    Guarantees that libpq query parameters (such as channel_binding, sslmode, endpoint)
+    are stripped from the SQLAlchemy URL and properly translated into asyncpg connect_args.
     """
     connect_args = {}
 
@@ -25,23 +26,21 @@ def prepare_database_connection(raw_url: str):
     parsed = urllib.parse.urlparse(raw_url)
 
     if "postgresql+asyncpg" in parsed.scheme:
-        # Extract and clean query parameters for asyncpg
         query_params = urllib.parse.parse_qs(parsed.query)
 
-        sslmode = query_params.pop("sslmode", [None])[0]
-        ssl = query_params.pop("ssl", [None])[0]
-        # Remove parameters not supported by asyncpg connect
-        query_params.pop("channel_binding", None)
-        query_params.pop("endpoint", None)
+        sslmode = query_params.get("sslmode", [None])[0]
+        ssl = query_params.get("ssl", [None])[0]
 
-        if sslmode in ("require", "verify-ca", "verify-full") or ssl in ("require", "true", "1", "True"):
+        # Enable SSL for remote PostgreSQL / Neon unless explicitly disabled or running on localhost
+        is_local = parsed.hostname in ("localhost", "127.0.0.1", "db", "postgres")
+        if sslmode in ("require", "verify-ca", "verify-full") or ssl in ("require", "true", "1", "True") or not is_local:
             connect_args["ssl"] = "require"
         elif sslmode == "disable" or ssl in ("disable", "false", "0", "False"):
             connect_args["ssl"] = False
 
-        new_query = urllib.parse.urlencode({k: v[0] for k, v in query_params.items()}) if query_params else ""
+        # Build clean URL with NO query string parameters to prevent asyncpg TypeError
         cleaned_url = urllib.parse.urlunparse(
-            (parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment)
+            (parsed.scheme, parsed.netloc, parsed.path, parsed.params, "", parsed.fragment)
         )
         return cleaned_url, connect_args
 
@@ -94,7 +93,7 @@ _tables_initialized = False
 
 
 async def ensure_tables_created():
-    """Idempotently creates all database tables if they do not exist."""
+    """Idempotently creates all database tables and enum types if they do not exist."""
     global _tables_initialized
     if not _tables_initialized:
         # Import models so Base.metadata is fully populated
