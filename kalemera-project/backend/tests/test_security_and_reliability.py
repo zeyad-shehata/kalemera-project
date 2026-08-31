@@ -60,7 +60,10 @@ async def test_idor_protection_orders_and_notifications(client: AsyncClient, tes
 
     order_resp = await client.post(
         "/api/orders/",
-        json={"items": [{"product_id": sample_product.id, "quantity": 1}]},
+        json={
+            "items": [{"product_id": sample_product.id, "quantity": 1}],
+            "delivery_address": "سكن الولاد الداخلي",
+        },
         headers=headers_admin
     )
     assert order_resp.status_code == 201
@@ -83,6 +86,7 @@ async def test_price_tampering_defense(client: AsyncClient, test_user: User, sam
 
     # Attempt to tamper: send price=0.01, subtotal=0.01 in order payload
     tampered_payload = {
+        "delivery_address": "الحي الراقي",
         "items": [
             {
                 "product_id": sample_product.id,
@@ -109,15 +113,19 @@ async def test_input_validation_and_bounds(client: AsyncClient, test_user: User,
     headers = {"Authorization": f"Bearer {token}"}
 
     # 1. Negative quantity
-    resp = await client.post("/api/orders/", json={"items": [{"product_id": sample_product.id, "quantity": -5}]}, headers=headers)
+    resp = await client.post("/api/orders/", json={"delivery_address": "سكن الولاد الداخلي", "items": [{"product_id": sample_product.id, "quantity": -5}]}, headers=headers)
     assert resp.status_code == 422
 
     # 2. Zero quantity
-    resp = await client.post("/api/orders/", json={"items": [{"product_id": sample_product.id, "quantity": 0}]}, headers=headers)
+    resp = await client.post("/api/orders/", json={"delivery_address": "سكن الولاد الداخلي", "items": [{"product_id": sample_product.id, "quantity": 0}]}, headers=headers)
     assert resp.status_code == 422
 
     # 3. Excessive quantity (> 100 limit)
-    resp = await client.post("/api/orders/", json={"items": [{"product_id": sample_product.id, "quantity": 5000}]}, headers=headers)
+    resp = await client.post("/api/orders/", json={"delivery_address": "سكن الولاد الداخلي", "items": [{"product_id": sample_product.id, "quantity": 5000}]}, headers=headers)
+    assert resp.status_code == 422
+
+    # 4. Disallowed delivery address (free-form) -> 422
+    resp = await client.post("/api/orders/", json={"delivery_address": "أي عنوان حر", "items": [{"product_id": sample_product.id, "quantity": 1}]}, headers=headers)
     assert resp.status_code == 422
 
     # 4. Invalid Egyptian phone format

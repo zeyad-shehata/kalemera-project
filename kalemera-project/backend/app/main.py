@@ -9,6 +9,13 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.routers import auth, products, categories, orders, notifications, reports, storage
+from app.services.business_hours import (
+    get_settings_timezone,
+    is_store_closed,
+    closed_message,
+    now_in_business_timezone,
+    CLOSE_HOUR,
+)
 
 logger = logging.getLogger("kalmera.api")
 
@@ -108,3 +115,19 @@ async def root():
 @app.get("/api/health", status_code=status.HTTP_200_OK, tags=["health"])
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/api/business-hours", tags=["business-hours"])
+async def business_hours_status():
+    """Public endpoint reporting whether the store is currently accepting orders.
+
+    The closed/open state is computed from SERVER time in the business timezone
+    (Africa/Cairo), never from the client clock.
+    """
+    return {
+        "closed": is_store_closed(),
+        "message": closed_message(),
+        "timezone": get_settings_timezone(),
+        "closes_at_hour": CLOSE_HOUR,
+        "server_time": str(now_in_business_timezone()),
+    }

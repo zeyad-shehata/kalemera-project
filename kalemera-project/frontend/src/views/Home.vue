@@ -42,6 +42,22 @@
     </v-sheet>
 
     <v-container class="py-6 py-sm-8 px-3 px-sm-6">
+      <!-- Business Hours Status Banner (OPEN / CLOSED) -->
+      <v-alert
+        v-if="storeStatusLoaded"
+        :type="storeClosed ? 'warning' : 'success'"
+        variant="tonal"
+        density="compact"
+        class="mb-4 rounded-lg"
+      >
+        <div class="d-flex align-center ga-2 flex-wrap">
+          <v-icon>{{ storeClosed ? 'mdi-clock-alert' : 'mdi-clock-check-outline' }}</v-icon>
+          <span class="font-weight-bold">
+            {{ storeClosed ? localeStore.t('storeClosed') : localeStore.t('storeOpen') }}
+          </span>
+        </div>
+      </v-alert>
+
       <!-- Search Bar (Always Visible) -->
       <v-row class="mb-6 mb-sm-8" justify="center">
         <v-col cols="12" md="8">
@@ -185,12 +201,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useProductStore } from '../stores/products'
 import { useLocaleStore } from '../stores/locale'
 import type { Product, Category } from '../types'
 import { useCartStore } from '../stores/cart'
 import ProductCard from '../components/ProductCard.vue'
+import { API_BASE_URL } from '../api'
 
 const productStore = useProductStore()
 const cartStore = useCartStore()
@@ -201,6 +218,21 @@ const selectedCategory = ref<number | null>(null)
 const selectedSort = ref('name_asc')
 const page = ref(1)
 const size = 8 // items per page
+
+const storeClosed = ref(false)
+const storeStatusLoaded = ref(false)
+let statusTimer: number | null = null
+
+const checkBusinessHours = async () => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/business-hours`)
+    const data = await res.json()
+    storeClosed.value = Boolean(data?.closed)
+    storeStatusLoaded.value = true
+  } catch (e) {
+    storeStatusLoaded.value = false
+  }
+}
 
 // Static Category metadata with VALID MDI icons (Salads updated to mdi-bowl-mix)
 const categoryMeta: Record<string, { nameAr: string; nameEn: string; icon: string }> = {
@@ -215,7 +247,9 @@ const categoryMeta: Record<string, { nameAr: string; nameEn: string; icon: strin
   "Potato": { nameAr: "البطاطس", nameEn: "Potato", icon: "mdi-french-fries" },
   "Sauces": { nameAr: "الصوصات", nameEn: "Sauces", icon: "mdi-soy-sauce" },
   "Drinks": { nameAr: "المشروبات", nameEn: "Drinks", icon: "mdi-cup-water" },
-  "Market": { nameAr: "الماركت", nameEn: "Market", icon: "mdi-shopping" }
+  "Market": { nameAr: "الماركت", nameEn: "Market", icon: "mdi-shopping" },
+  "الخضار والفاكهة": { nameAr: "الخضار والفاكهة", nameEn: "Vegetables & Fruits", icon: "mdi-vegetable" },
+  "العروض": { nameAr: "العروض", nameEn: "Offers", icon: "mdi-tag" }
 }
 
 const getCategoryIcon = (name: string) => {
@@ -296,6 +330,12 @@ const clearSearch = () => {
 
 onMounted(() => {
   productStore.fetchCategories()
+  checkBusinessHours()
+  statusTimer = window.setInterval(checkBusinessHours, 60000)
+})
+
+onUnmounted(() => {
+  if (statusTimer) window.clearInterval(statusTimer)
 })
 
 const totalPages = computed(() => {

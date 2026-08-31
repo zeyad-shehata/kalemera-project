@@ -7,11 +7,19 @@ from app.repositories.order_repository import order_repository
 from app.repositories.product_repository import product_repository
 from app.repositories.notification_repository import notification_repository
 from app.schemas import OrderCreate, OrderStatusUpdate
+from app.services.business_hours import is_store_closed, closed_message
 
 class OrderService:
     async def create_order(
         self, db: AsyncSession, current_user: User, order_in: OrderCreate
     ) -> Order:
+        # Business hours enforcement (server timezone: Africa/Cairo)
+        if is_store_closed():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=closed_message(),
+            )
+
         if not order_in.items:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -79,7 +87,8 @@ class OrderService:
             db=db,
             user_id=current_user.id,
             total_price=total_price,
-            items=order_items_to_create
+            items=order_items_to_create,
+            delivery_address=order_in.delivery_address,
         )
 
         # Notify buyer
@@ -88,8 +97,8 @@ class OrderService:
             user_id=current_user.id,
             message=f"Order #{new_order.id} has been placed successfully. Total: {total_price:.2f} EGP."
         )
-
         await db.commit()
+
         return await order_repository.get_by_id(db, new_order.id)
 
     async def cancel_order(

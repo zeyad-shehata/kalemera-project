@@ -7,12 +7,13 @@ from app.models import Order, OrderItem, Product, OrderStatus
 
 class OrderRepository:
     async def create(
-        self, db: AsyncSession, user_id: int, total_price: float, items: List[OrderItem]
+        self, db: AsyncSession, user_id: int, total_price: float, items: List[OrderItem], delivery_address: Optional[str] = None
     ) -> Order:
         order = Order(
             user_id=user_id,
             status=OrderStatus.PENDING,
             total_price=total_price,
+            delivery_address=delivery_address,
             items=items,
         )
         db.add(order)

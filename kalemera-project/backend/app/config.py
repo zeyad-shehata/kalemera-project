@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     BACKUP_RETENTION_COUNT: int = 7
     HOSTING_STORAGE_LIMIT_BYTES: int = 10737418240  # 10 GB in bytes (10 * 1024 * 1024 * 1024)
 
+    # Business Hours
+    BUSINESS_TIMEZONE: str = "Africa/Cairo"  # Restaurant business timezone
+    ENABLE_BUSINESS_HOURS: bool = True  # Master switch for order acceptance window
+    BUSINESS_CLOSE_HOUR: int = 23  # 11:00 PM (24h)
+
     # Automatically load from a .env file if it exists
     model_config = SettingsConfigDict(
         env_file=ENV_FILE_PATH,

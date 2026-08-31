@@ -5,13 +5,25 @@
   box-sizing: border-box;
 }
 
+/* Prevent iOS Safari from auto-zooming text and compute layout at device width */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   overflow-x: hidden;
+  overflow-x: clip;
   font-family: 'Cairo', 'Tajawal', 'Outfit', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -23,13 +35,50 @@ body {
   flex-direction: column;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .v-application {
   overflow-x: hidden !important;
+  overflow-x: clip !important;
   max-width: 100% !important;
   width: 100% !important;
+  min-width: 0 !important;
+}
+
+.v-application__wrap {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+.v-main {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* Allow grid/flex children to shrink below their content width.
+   This prevents cards/text from forcing the whole page wider than the
+   viewport on small screens (the root cause of iOS "zoomed-out" layout). */
+.v-container,
+.v-row,
+.v-col,
+.v-card,
+.v-list-item,
+.v-toolbar__content > * {
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .v-toolbar__content {
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+  }
 }
 
 /* Ensure containers and grids never force horizontal scrolling */
@@ -56,9 +105,27 @@ body {
 
 /* Prevent image overflow */
 img,
-.v-img {
+.v-img,
+video,
+canvas,
+svg {
   max-width: 100%;
   height: auto;
+}
+
+/* Prevent long unbreakable text (links, prices, titles) from widening the page */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.v-card-title,
+.v-list-item-title,
+.v-card-subtitle,
+.v-list-item-subtitle {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Text wrapping protection */

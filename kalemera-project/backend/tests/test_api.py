@@ -91,12 +91,16 @@ async def test_orders_flow(client: AsyncClient, db_session: AsyncSession):
     assert login_response.status_code == 200
 
     # Place an Order
-    order_payload = {"items": [{"product_id": product.id, "quantity": 2}]}
+    order_payload = {
+        "items": [{"product_id": product.id, "quantity": 2}],
+        "delivery_address": "سكن الولاد الداخلي",
+    }
     response = await client.post("/api/orders/", json=order_payload)
     assert response.status_code == 201
     order_data = response.json()
     assert order_data["total_price"] == 240.00
     assert order_data["status"] == "PENDING"
+    assert order_data["delivery_address"] == "سكن الولاد الداخلي"
 
     # Verify product stock was reduced
     await db_session.refresh(product)
@@ -144,7 +148,11 @@ async def test_cancel_order_flow(client: AsyncClient, db_session: AsyncSession):
 
     # Place an order for 2 units
     order_response = await client.post(
-        "/api/orders/", json={"items": [{"product_id": product.id, "quantity": 2}]}
+        "/api/orders/",
+        json={
+            "items": [{"product_id": product.id, "quantity": 2}],
+            "delivery_address": "سكن الولاد الداخلي",
+        },
     )
     assert order_response.status_code == 201
     order_id = order_response.json()["id"]
@@ -203,7 +211,11 @@ async def test_customer_cannot_cancel_others_order(
         "/api/auth/login", json={"phone": "01000000004", "password": "ownerpass"}
     )
     order_response = await client.post(
-        "/api/orders/", json={"items": [{"product_id": product.id, "quantity": 1}]}
+        "/api/orders/",
+        json={
+            "items": [{"product_id": product.id, "quantity": 1}],
+            "delivery_address": "سكن البنات الداخلي",
+        },
     )
     assert order_response.status_code == 201
     order_id = order_response.json()["id"]
@@ -255,7 +267,11 @@ async def test_admin_cancel_restores_stock(
         json={"phone": "01000000007", "password": "custpass"},
     )
     order_response = await client.post(
-        "/api/orders/", json={"items": [{"product_id": product.id, "quantity": 3}]}
+        "/api/orders/",
+        json={
+            "items": [{"product_id": product.id, "quantity": 3}],
+            "delivery_address": "الحي الراقي",
+        },
     )
     assert order_response.status_code == 201
     order_id = order_response.json()["id"]
@@ -316,7 +332,11 @@ async def test_cannot_delete_product_referenced_in_order(
         json={"phone": "01000000009", "password": "custpass"},
     )
     order_response = await client.post(
-        "/api/orders/", json={"items": [{"product_id": product.id, "quantity": 1}]}
+        "/api/orders/",
+        json={
+            "items": [{"product_id": product.id, "quantity": 1}],
+            "delivery_address": "سكن الولاد الداخلي",
+        },
     )
     assert order_response.status_code == 201
 
@@ -367,7 +387,11 @@ async def test_cannot_delete_category_with_ordered_products(
         "/api/auth/login", json={"phone": "01000000011", "password": "custpass"}
     )
     order_response = await client.post(
-        "/api/orders/", json={"items": [{"product_id": product.id, "quantity": 1}]}
+        "/api/orders/",
+        json={
+            "items": [{"product_id": product.id, "quantity": 1}],
+            "delivery_address": "سكن البنات الداخلي",
+        },
     )
     assert order_response.status_code == 201
 
