@@ -167,7 +167,7 @@
     >
       <div class="d-flex align-center">
         <v-icon start color="white">mdi-bell-ring</v-icon>
-        <span class="font-weight-bold">{{ snackbar.message }}</span>
+        <span class="font-weight-bold text-break-word">{{ snackbar.message }}</span>
       </div>
       <template v-slot:actions>
         <v-btn color="white" variant="text" @click="snackbar.show = false">{{ localeStore.t('close') }}</v-btn>
@@ -240,6 +240,18 @@ watch(
     }
   },
   { deep: true }
+)
+
+// Watch for cart additions to show success snackbar
+watch(
+  () => cartStore.justAdded,
+  (added) => {
+    if (added) {
+      snackbar.value.message = localeStore.t('cartAddedSuccess')
+      snackbar.value.show = true
+      cartStore.clearJustAdded()
+    }
+  }
 )
 
 onMounted(() => {

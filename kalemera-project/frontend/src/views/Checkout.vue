@@ -52,7 +52,19 @@
               <v-text-field :label="t('phoneNumber')" variant="outlined" density="comfortable" :value="authStore.currentUser?.phone || ''" readonly></v-text-field>
             </v-col>
             <v-col cols="12">
-              <v-text-field :label="t('deliveryAddress')" variant="outlined" density="comfortable" :value="t('defaultAddress')" readonly></v-text-field>
+              <v-select
+                :label="t('deliveryAddress')"
+                v-model="deliveryAddress"
+                :items="deliveryOptions"
+                item-title="label"
+                item-value="value"
+                variant="outlined"
+                density="comfortable"
+                color="primary"
+                prepend-inner-icon="mdi-map-marker-radius"
+                class="bg-surface rounded-lg"
+                hide-details
+              ></v-select>
             </v-col>
             <v-col cols="12">
               <v-chip class="font-weight-bold" color="info" label>
@@ -90,13 +102,20 @@
             {{ errorMessage }}
           </v-alert>
 
+          <v-alert v-else-if="storeClosed" type="warning" variant="tonal" class="mb-4">
+            <div class="d-flex align-center ga-2">
+              <v-icon>mdi-clock-alert</v-icon>
+              <span class="font-weight-bold">{{ t('storeClosed') }}</span>
+            </div>
+          </v-alert>
+
           <v-btn
             color="primary"
             size="large"
             block
             class="font-weight-bold text-uppercase rounded-lg"
             :loading="orderStore.loading"
-            :disabled="cartStore.items.length === 0"
+            :disabled="cartStore.items.length === 0 || storeClosed"
             @click="confirmOrder"
           >
             {{ t('confirmOrder') }}
@@ -118,13 +137,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 import { useOrderStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
 import { useLocaleStore } from '../stores/locale'
-import { API_BASE_URL } from '../api'
+import api, { API_BASE_URL } from '../api'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -135,14 +154,32 @@ const { t } = localeStore
 
 const apiBaseUrl = API_BASE_URL
 const errorMessage = ref('')
+const storeClosed = ref(false)
+let statusTimer: number | null = null
+
+const deliveryOptions = [
+  { label: 'سكن الولاد الداخلي', value: 'سكن الولاد الداخلي' },
+  { label: 'سكن البنات الداخلي', value: 'سكن البنات الداخلي' },
+  { label: 'الحي الراقي', value: 'الحي الراقي' },
+]
+const deliveryAddress = ref('سكن الولاد الداخلي')
 
 const shippingName = computed(() => authStore.currentUser?.full_name || '')
 
+const checkBusinessHours = async () => {
+  try {
+    const res = await api.get('/api/business-hours')
+    storeClosed.value = Boolean(res.data?.closed)
+  } catch (e) {
+    storeClosed.value = false
+  }
+}
+
 const confirmOrder = async () => {
-  if (cartStore.items.length === 0) return
-  
+  if (cartStore.items.length === 0 || storeClosed.value) return
+
   errorMessage.value = ''
-  
+
   const orderItems = cartStore.items.map((item) => ({
     product_id: item.product.id,
     variant_id: item.variant?.id || null,
@@ -150,15 +187,27 @@ const confirmOrder = async () => {
   }))
 
   try {
-    await orderStore.placeOrder(orderItems)
+    await orderStore.placeOrder(orderItems, deliveryAddress.value)
     cartStore.clearCart()
     router.push('/orders')
   } catch (error: any) {
     if (error.response && error.response.data && error.response.data.detail) {
       errorMessage.value = error.response.data.detail
+      if (error.response.status === 403 || error.response.status === 409) {
+        storeClosed.value = true
+      }
     } else {
       errorMessage.value = t('failOrder')
     }
   }
 }
+
+onMounted(async () => {
+  await checkBusinessHours()
+  statusTimer = window.setInterval(checkBusinessHours, 60000)
+})
+
+onUnmounted(() => {
+  if (statusTimer) window.clearInterval(statusTimer)
+})
 </script>

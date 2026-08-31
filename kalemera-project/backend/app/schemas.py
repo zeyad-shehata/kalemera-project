@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from app.models import UserRole, OrderStatus
 
@@ -97,8 +97,16 @@ class OrderItemCreate(BaseModel):
     quantity: int = Field(..., gt=0, le=100)
 
 
+ALLOWED_ADDRESSES = (
+    "سكن الولاد الداخلي",
+    "سكن البنات الداخلي",
+    "الحي الراقي",
+)
+
+
 class OrderCreate(BaseModel):
     items: List[OrderItemCreate] = Field(..., min_length=1, max_length=50)
+    delivery_address: Literal["سكن الولاد الداخلي", "سكن البنات الداخلي", "الحي الراقي"]
 
 
 class OrderItemResponse(BaseModel):
@@ -127,6 +135,7 @@ class OrderResponse(BaseModel):
     user_id: int
     status: OrderStatus
     total_price: float
+    delivery_address: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     items: List[OrderItemResponse]

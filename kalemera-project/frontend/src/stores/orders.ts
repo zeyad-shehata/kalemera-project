@@ -18,6 +18,7 @@ export interface Order {
   user_id: number
   status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
   total_price: number
+  delivery_address?: string | null
   created_at: string
   updated_at: string
   items: OrderItemResponse[]
@@ -35,10 +36,10 @@ export const useOrderStore = defineStore('orders', {
     loading: false,
   }),
   actions: {
-    async placeOrder(items: { product_id: number; variant_id: number | null; quantity: number }[]) {
+    async placeOrder(items: { product_id: number; variant_id: number | null; quantity: number }[], deliveryAddress?: string) {
       this.loading = true
       try {
-        const response = await api.post<Order>('/api/orders/', { items })
+        const response = await api.post<Order>('/api/orders/', { items, delivery_address: deliveryAddress })
         return response.data
       } finally {
         this.loading = false

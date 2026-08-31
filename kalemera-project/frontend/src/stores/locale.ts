@@ -109,6 +109,9 @@ export const useLocaleStore = defineStore('locale', () => {
       createdAt: 'تاريخ الإنشاء',
       defaultAddress: 'مطعم وماركت كال ميرا، مصر',
       orderPlacedSuccess: 'تم تأكيد الطلب بنجاح!',
+      cartAddedSuccess: 'تم إضافة المنتج إلى السلة، انظر إلى السلة',
+      storeClosed: 'المكان خارج ساعات العمل',
+      storeOpen: 'المتجر مفتوح، نستقبل الطلبات',
 
       // Order History
       orderNum: 'الطلب #{id}',
@@ -254,7 +257,9 @@ export const useLocaleStore = defineStore('locale', () => {
       "Potato": 'البطاطس',
       "Sauces": 'الصوصات',
       "Drinks": 'المشروبات',
-      "Market": 'الماركت'
+      "Market": 'الماركت',
+      "الخضار والفاكهة": 'الخضار والفاكهة',
+      "العروض": 'العروض'
     },
     en: {
       // Header & Navigation
@@ -342,6 +347,9 @@ export const useLocaleStore = defineStore('locale', () => {
       createdAt: 'Created At',
       defaultAddress: 'Kalmera Restaurant & Market, Egypt',
       orderPlacedSuccess: 'Order confirmed successfully!',
+      cartAddedSuccess: 'Product added to the cart, view your cart',
+      storeClosed: 'The place is outside working hours',
+      storeOpen: 'The store is open, accepting orders',
 
       // Order History
       orderNum: 'Order #{id}',
@@ -487,7 +495,9 @@ export const useLocaleStore = defineStore('locale', () => {
       "Potato": 'Potato',
       "Sauces": 'Sauces',
       "Drinks": 'Drinks',
-      "Market": 'Market'
+      "Market": 'Market',
+      "الخضار والفاكهة": 'Vegetables & Fruits',
+      "العروض": 'Offers'
     }
   }
 

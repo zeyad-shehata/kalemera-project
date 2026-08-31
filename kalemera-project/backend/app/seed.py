@@ -44,7 +44,9 @@ CATEGORIES_TO_SEED = [
     "Sauces",
     "Potato",
     "Drinks",
-    "Market"
+    "Market",
+    "الخضار والفاكهة",
+    "العروض",
 ]
 
 # Products List
@@ -1027,22 +1029,21 @@ PRODUCTS_DATA = [
         ]
 
 async def seed_initial_data_if_empty(session: AsyncSession):
-    """Safely seeds default categories, products, and default users if categories table is empty."""
-    result = await session.execute(select(func.count()).select_from(Category))
-    cat_count = result.scalar() or 0
-    if cat_count > 0:
-        return  # Already populated
+    """Safely seeds default categories, products, and default users.
 
-    # 1. Create Default Users if not exist
-    admin_phone = "01000000001"
+    This function is idempotent and will only add missing categories or users without
+    deleting or overwriting existing records.
+    """
+    # 1. Create Default Users if not exist (idempotent)
+    admin_phone = "01055103802"
     customer_phone = "01000000002"
 
     admin_res = await session.execute(select(User).where(User.phone == admin_phone))
     if not admin_res.scalars().first():
         admin = User(
             phone=admin_phone,
-            hashed_password=get_password_hash("admin123"),
-            full_name="كالميرا أدمن / Kalmera Admin",
+            hashed_password=get_password_hash("baraa321"),
+            full_name="Admin Baraa / براء",
             role=UserRole.ADMIN,
         )
         session.add(admin)
@@ -1057,15 +1058,29 @@ async def seed_initial_data_if_empty(session: AsyncSession):
         )
         session.add(customer)
 
-    # 2. Create Categories
+    # 2. Ensure Categories exist (only insert missing ones)
     category_records = {}
     for cat_name in CATEGORIES_TO_SEED:
+        existing = await session.execute(select(Category).where(Category.name == cat_name))
+        existing_cat = existing.scalars().first()
+        if existing_cat:
+            category_records[cat_name] = existing_cat.id
+            continue
+
         cat = Category(name=cat_name)
         session.add(cat)
         await session.flush()
         category_records[cat_name] = cat.id
 
-    # 3. Create Products and Variants
+    # 3. Create Products and Variants (idempotent: skip products that already exist)
+    existing_names = set(
+        (await session.execute(select(Product.name_en, Product.name))).all()
+    )
+    existing_product_keys = set()
+    for name_en, name_ar in existing_names:
+        existing_product_keys.add(name_en.strip() if name_en else "")
+        existing_product_keys.add(name_ar.strip() if name_ar else "")
+
     for prod in PRODUCTS_DATA:
         image_path = create_compressed_placeholder(
             prod["img_filename"], prod["img_label"], prod["img_color"]
@@ -1077,6 +1092,10 @@ async def seed_initial_data_if_empty(session: AsyncSession):
             parts = full_name.split(" - ", 1)
             name_en = parts[0].strip()
             name_ar = parts[1].strip()
+
+        # Skip if this product already exists (by English or Arabic name)
+        if name_en in existing_product_keys or name_ar in existing_product_keys:
+            continue
 
         full_desc = prod.get("description", "")
         desc_ar, desc_en = full_desc, full_desc
@@ -1103,6 +1122,8 @@ async def seed_initial_data_if_empty(session: AsyncSession):
                 )
 
         session.add(new_product)
+        existing_product_keys.add(name_ar.strip() if name_ar else "")
+        existing_product_keys.add(name_en.strip() if name_en else "")
 
     await session.commit()
     print("Initial Kalmera menu data seeded successfully.")

@@ -175,6 +175,9 @@
             <div class="mb-4 text-copper-muted">
               <strong>{{ t('customerLabel') }}:</strong> {{ selectedOrder?.user?.full_name }} ({{ selectedOrder?.user?.phone }})
             </div>
+            <div v-if="selectedOrder?.delivery_address" class="mb-4 text-copper-muted">
+              <strong>{{ t('deliveryAddress') }}:</strong> {{ selectedOrder.delivery_address }}
+            </div>
             <v-divider class="mb-4 border-bronze"></v-divider>
             <div class="font-weight-bold text-subtitle-1 mb-2 text-primary">{{ t('itemsLabel') }}:</div>
             <v-list class="bg-transparent pa-0">

@@ -175,7 +175,9 @@ const categoryName = computed(() => {
     "Potato": { nameAr: "البطاطس", nameEn: "Potato" },
     "Sauces": { nameAr: "الصوصات", nameEn: "Sauces" },
     "Drinks": { nameAr: "المشروبات", nameEn: "Drinks" },
-    "Market": { nameAr: "الماركت", nameEn: "Market" }
+    "Market": { nameAr: "الماركت", nameEn: "Market" },
+    "الخضار والفاكهة": { nameAr: "الخضار والفاكهة", nameEn: "Vegetables & Fruits" },
+    "العروض": { nameAr: "العروض", nameEn: "Offers" }
   }
   const meta = categoryMeta[cat.name]
   return localeStore.currentLocale === 'en' ? (meta?.nameEn || cat.name) : (meta?.nameAr || cat.name)

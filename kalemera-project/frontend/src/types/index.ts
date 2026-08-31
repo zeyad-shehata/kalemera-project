@@ -49,6 +49,7 @@ export interface Order {
   user_id: number
   status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
   total_price: number
+  delivery_address?: string | null
   created_at: string
   updated_at: string
   items: OrderItem[]
