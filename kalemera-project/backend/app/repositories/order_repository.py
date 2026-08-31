@@ -52,4 +52,14 @@ class OrderRepository:
             if product:
                 product.stock += item.quantity
 
+    async def delete(self, db: AsyncSession, order: Order) -> None:
+        """Hard-delete an order and its order_items.
+
+        order_items are removed via the ORM relationship cascade
+        (cascade="all, delete-orphan"). Only the order and its own items are
+        removed; users, products, and categories are left untouched.
+        """
+        await db.delete(order)
+        await db.commit()
+
 order_repository = OrderRepository()

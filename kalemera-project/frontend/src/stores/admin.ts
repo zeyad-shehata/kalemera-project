@@ -106,5 +106,10 @@ export const useAdminStore = defineStore('admin', {
       const response = await api.put<Order>(`/api/orders/${orderId}/status`, { status })
       return response.data
     },
+
+    // Admin-only order hard-deletion (removes test/orphaned orders)
+    async deleteOrder(orderId: number) {
+      await api.delete(`/api/orders/${orderId}`)
+    },
   },
 })

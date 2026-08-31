@@ -61,3 +61,17 @@ async def update_order_status(
     db: AsyncSession = Depends(get_db),
 ):
     return await order_service.update_order_status(db, order_id, status_update)
+
+
+@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_order(
+    order_id: int,
+    admin_user=Depends(admin_required),
+    db: AsyncSession = Depends(get_db),
+):
+    """ADMIN-ONLY hard deletion of an order.
+
+    Removes the order and its order_items, restores product stock, and requires
+    admin authentication (admin_required). Normal customers are always rejected.
+    """
+    await order_service.delete_order(db, admin_user, order_id)
