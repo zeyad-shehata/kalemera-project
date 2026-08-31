@@ -101,6 +101,33 @@ class OrderService:
 
         return await order_repository.get_by_id(db, new_order.id)
 
+    async def delete_order(
+        self, db: AsyncSession, current_user: User, order_id: int
+    ) -> None:
+        """ADMIN-ONLY hard deletion of an order.
+
+        Removes the order and its order_items. Stock is restored so product
+        availability stays consistent (mirrors the cancellation flow). This is a
+        deliberate, destructive admin action used to remove test/orphaned orders;
+        it is never exposed to customers. Users, products, and categories are not
+        affected.
+        """
+        if current_user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can delete orders.",
+            )
+
+        order = await order_repository.get_by_id(db, order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Order not found."
+            )
+
+        # Restore stock before deleting so product availability is preserved.
+        await order_repository.restore_stock_for_order(db, order)
+        await order_repository.delete(db, order)
+
     async def cancel_order(
         self, db: AsyncSession, current_user: User, order_id: int
     ) -> Order:

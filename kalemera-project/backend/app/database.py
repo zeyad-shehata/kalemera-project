@@ -93,13 +93,26 @@ _tables_initialized = False
 
 
 async def ensure_tables_created():
-    """Idempotently creates all database tables and seeds default menu data if empty."""
+    """Idempotently creates all database tables, applies additive schema
+    migrations for already-existing tables, and seeds default data if empty."""
     global _tables_initialized
     if not _tables_initialized:
         # Import models so Base.metadata is fully populated
         import app.models  # noqa: F401
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Additive, idempotent schema migration for columns added to ORM
+            # models after the production tables were first created
+            # (e.g. Order.delivery_address). create_all never adds columns to an
+            # existing table, so this must be handled explicitly.
+            try:
+                from app.services.schema_migration import migrate_schema
+
+                applied = await migrate_schema(conn)
+                if applied:
+                    logger.info("Applied additive schema migration: %s", applied)
+            except Exception as mig_err:
+                logger.warning(f"Additive schema migration notice: {mig_err}")
 
         # Safely seed initial categories and products if database is empty
         try:

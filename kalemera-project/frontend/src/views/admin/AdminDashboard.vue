@@ -154,6 +154,16 @@
                 >
                   {{ t('details') }}
                 </v-btn>
+                <v-btn
+                  color="error"
+                  variant="outlined"
+                  size="small"
+                  class="font-weight-bold"
+                  prepend-icon="mdi-delete"
+                  @click="openDeleteDialog(order)"
+                >
+                  {{ t('delete') }}
+                </v-btn>
               </td>
             </tr>
           </tbody>
@@ -212,6 +222,32 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
+
+      <!-- Admin Order Deletion Confirmation Dialog -->
+      <v-dialog v-model="deleteDialog" max-width="460px">
+        <v-card class="rounded-xl pa-4 bg-surface border-bronze">
+          <v-card-title class="text-h5 font-weight-black text-error">
+            {{ t('deleteOrderTitle') }}
+          </v-card-title>
+          <v-card-text class="text-copper-muted">
+            <p class="mb-2">
+              {{ t('deleteOrderConfirm') }} <strong>#{{ deleteTarget?.id }}</strong>?
+            </p>
+            <p v-if="deleteTarget" class="text-caption">
+              {{ t('deleteOrderSub') }}
+            </p>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="secondary" variant="tonal" class="font-weight-bold" @click="deleteDialog = false">
+              {{ t('cancel') }}
+            </v-btn>
+            <v-btn color="error" class="font-weight-bold" :loading="deleting" @click="confirmDeleteOrder">
+              {{ t('delete') }}
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </div>
   </v-container>
 </template>
@@ -244,6 +280,30 @@ const { t } = localeStore
 const orders = ref<Order[]>([])
 const detailsDialog = ref(false)
 const selectedOrder = ref<Order | null>(null)
+
+const deleteDialog = ref(false)
+const deleteTarget = ref<Order | null>(null)
+const deleting = ref(false)
+
+const openDeleteDialog = (order: Order) => {
+  deleteTarget.value = order
+  deleteDialog.value = true
+}
+
+const confirmDeleteOrder = async () => {
+  if (!deleteTarget.value) return
+  deleting.value = true
+  try {
+    await adminStore.deleteOrder(deleteTarget.value.id)
+    deleteDialog.value = false
+    deleteTarget.value = null
+    await loadData()
+  } catch (error) {
+    alert(t('deleteOrderFailed'))
+  } finally {
+    deleting.value = false
+  }
+}
 
 const loadOrders = async () => {
   try {

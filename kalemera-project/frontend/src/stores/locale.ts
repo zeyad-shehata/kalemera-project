@@ -121,6 +121,12 @@ export const useLocaleStore = defineStore('locale', () => {
       cancelOrder: 'إلغاء الطلب',
       confirmCancelOrder: 'هل أنت متأكد من إلغاء الطلب #{id}؟',
       failCancelOrder: 'فشل إلغاء الطلب.',
+
+      // Admin order deletion
+      deleteOrderTitle: 'حذف الطلب',
+      deleteOrderConfirm: 'هل أنت متأكد من حذف الطلب #{id} نهائياً؟',
+      deleteOrderSub: 'سيتم حذف الطلب وأصنافه نهائياً مع إعادة الكمية للمخزون. لا يمكن التراجع عن هذا الإجراء.',
+      deleteOrderFailed: 'فشل حذف الطلب.',
       noOrdersTitle: 'ليس لديك طلبات سابقة بعد',
       noOrdersSubtitle: 'عندما تقوم بشراء منتجات، ستظهر هنا تفاصيل طلباتك',
 
@@ -358,6 +364,12 @@ export const useLocaleStore = defineStore('locale', () => {
       lastUpdated: 'Last Updated:',
       cancelOrder: 'Cancel Order',
       confirmCancelOrder: 'Are you sure you want to cancel Order #{id}?',
+
+      // Admin order deletion
+      deleteOrderTitle: 'Delete Order',
+      deleteOrderConfirm: 'Are you sure you want to permanently delete Order #{id}?',
+      deleteOrderSub: 'The order and its items will be permanently deleted and product stock will be restored. This cannot be undone.',
+      deleteOrderFailed: 'Failed to delete the order.',
       failCancelOrder: 'Failed to cancel order.',
       noOrdersTitle: 'You have no orders yet',
       noOrdersSubtitle: 'When you buy products, your order history will appear here',
