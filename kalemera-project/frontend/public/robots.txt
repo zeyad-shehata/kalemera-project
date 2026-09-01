@@ -1,8 +1,16 @@
+# Robots.txt for Kalmera
 User-agent: *
 Allow: /
-Disallow: /api/
 Disallow: /admin/
+Disallow: /login
+Disallow: /register
 Disallow: /checkout
+Disallow: /cart
 Disallow: /orders
+Disallow: /api/
 
-Sitemap: http://localhost/sitemap.xml
+# Sitemap location
+Sitemap: https://kalmera.com/sitemap.xml
+
+# Crawl delay (optional)
+Crawl-delay: 1

@@ -162,7 +162,7 @@ const deliveryOptions = [
   { label: 'سكن البنات الداخلي', value: 'سكن البنات الداخلي' },
   { label: 'الحي الراقي', value: 'الحي الراقي' },
 ]
-const deliveryAddress = ref('سكن الولاد الداخلي')
+const deliveryAddress = ref(null as string | null)
 
 const shippingName = computed(() => authStore.currentUser?.full_name || '')
 
@@ -177,6 +177,13 @@ const checkBusinessHours = async () => {
 
 const confirmOrder = async () => {
   if (cartStore.items.length === 0 || storeClosed.value) return
+
+  if (!deliveryAddress.value) {
+    errorMessage.value = localeStore.currentLocale === 'ar' 
+      ? 'يرجى اختيار عنوان التوصيل أولاً'
+      : 'Please select a delivery address first'
+    return
+  }
 
   errorMessage.value = ''
 

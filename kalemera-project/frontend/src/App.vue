@@ -30,9 +30,12 @@
 
       <!-- Action Group: Language, Theme, Cart, Notifications -->
       <div class="d-flex align-center ga-1 ga-sm-2">
-        <!-- Language Switcher -->
-        <v-btn variant="text" color="primary" class="font-weight-black px-2 text-subtitle-2 rounded-lg" @click="toggleLanguage">
+        <!-- Language Switcher (Text on medium+, icon only on small) -->
+        <v-btn variant="text" color="primary" class="font-weight-black px-1 px-sm-2 text-subtitle-2 rounded-lg hidden-xs-only" @click="toggleLanguage">
           🌐 {{ localeStore.currentLocale === 'ar' ? 'EN' : 'عربي' }}
+        </v-btn>
+        <v-btn icon size="small" color="primary" class="d-none d-xs-flex" @click="toggleLanguage" aria-label="Toggle Language">
+          <v-icon>mdi-translate</v-icon>
         </v-btn>
 
         <!-- Theme Switcher -->
