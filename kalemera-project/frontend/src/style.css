@@ -62,6 +62,13 @@ body {
   overflow-x: clip;
 }
 
+/* Keep the translated, closed mobile drawer out of document sizing. */
+@media (max-width: 600px) {
+  .v-navigation-drawer--temporary {
+    contain: layout paint;
+  }
+}
+
 /* Allow grid/flex children to shrink below their content width.
    This prevents cards/text from forcing the whole page wider than the
    viewport on small screens (the root cause of iOS "zoomed-out" layout). */
