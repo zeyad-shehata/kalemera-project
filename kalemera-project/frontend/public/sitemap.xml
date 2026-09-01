@@ -1,27 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    <url>
-        <loc>http://localhost/</loc>
-        <lastmod>2026-08-29</lastmod>
-        <changefreq>daily</changefreq>
-        <priority>1.0</priority>
-    </url>
-    <url>
-        <loc>http://localhost/cart</loc>
-        <lastmod>2026-08-29</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.8</priority>
-    </url>
-    <url>
-        <loc>http://localhost/login</loc>
-        <lastmod>2026-08-29</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.5</priority>
-    </url>
-    <url>
-        <loc>http://localhost/register</loc>
-        <lastmod>2026-08-29</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.5</priority>
-    </url>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:mobile="http://www.mobile.googlebot.com/schemas/mobile-content/1.0">
+  <!-- Home Page - Highest Priority -->
+  <url>
+    <loc>https://kalmera.com/</loc>
+    <lastmod>2026-09-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <mobile:mobile/>
+  </url>
+
+  <!-- Products Browsing - Public -->
+  <url>
+    <loc>https://kalmera.com/</loc>
+    <lastmod>2026-09-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <mobile:mobile/>
+  </url>
+
+  <!-- Private Pages - Excluded from Sitemap (should use noindex) -->
+  <!-- These are intentionally omitted from sitemap and marked noindex via meta tags:
+       - /admin/* (Administrative pages)
+       - /login (Authentication page)
+       - /register (Registration page)
+       - /checkout (Checkout page)
+       - /cart (Shopping cart)
+       - /orders (User order history)
+  -->
 </urlset>
