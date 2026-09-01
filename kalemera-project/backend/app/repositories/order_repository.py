@@ -26,7 +26,8 @@ class OrderRepository:
         query = select(Order).options(selectinload(Order.items), selectinload(Order.user))
         if not is_admin and user_id is not None:
             query = query.where(Order.user_id == user_id)
-        query = query.order_by(Order.created_at.desc())
+        # FIFO ordering: oldest orders first (created_at ASC), secondary sort by id ASC
+        query = query.order_by(Order.created_at.asc(), Order.id.asc())
 
         result = await db.execute(query)
         return result.scalars().all()

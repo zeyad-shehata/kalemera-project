@@ -6,7 +6,7 @@ from app.models import Order, OrderItem, Product, User, UserRole, OrderStatus, N
 from app.repositories.order_repository import order_repository
 from app.repositories.product_repository import product_repository
 from app.repositories.notification_repository import notification_repository
-from app.schemas import OrderCreate, OrderStatusUpdate
+from app.schemas import OrderCreate, OrderStatusUpdate, ALLOWED_ADDRESSES
 from app.services.business_hours import is_store_closed, closed_message
 
 class OrderService:
@@ -24,6 +24,19 @@ class OrderService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Order must contain at least one item.",
+            )
+
+        # Validate delivery address (backend validation - user cannot bypass with manual API call)
+        if not order_in.delivery_address or order_in.delivery_address.strip() == "":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Delivery address is required.",
+            )
+        
+        if order_in.delivery_address not in ALLOWED_ADDRESSES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid delivery address. Allowed addresses are: {', '.join(ALLOWED_ADDRESSES)}",
             )
 
         total_price = 0.0

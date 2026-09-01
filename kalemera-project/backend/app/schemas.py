@@ -106,7 +106,7 @@ ALLOWED_ADDRESSES = (
 
 class OrderCreate(BaseModel):
     items: List[OrderItemCreate] = Field(..., min_length=1, max_length=50)
-    delivery_address: Literal["سكن الولاد الداخلي", "سكن البنات الداخلي", "الحي الراقي"]
+    delivery_address: Literal["سكن الولاد الداخلي", "سكن البنات الداخلي", "الحي الراقي"] = Field(..., description="Delivery address is required")
 
 
 class OrderItemResponse(BaseModel):

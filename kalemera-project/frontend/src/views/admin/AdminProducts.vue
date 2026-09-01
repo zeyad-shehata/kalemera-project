@@ -10,6 +10,30 @@
       </v-btn>
     </div>
 
+    <!-- Search Field -->
+    <v-row class="mb-6" align="center">
+      <v-col cols="12" sm="6" md="4">
+        <v-text-field
+          v-model="searchQuery"
+          :label="t('searchPlaceholder')"
+          prepend-inner-icon="mdi-magnify"
+          clearable
+          variant="outlined"
+          density="comfortable"
+          hide-details
+          class="bg-surface rounded-lg border-bronze"
+          color="primary"
+          @input="debouncedSearch"
+          @click:clear="clearSearch"
+        ></v-text-field>
+      </v-col>
+      <v-col cols="12" sm="6" md="8">
+        <p v-if="searchQuery" class="text-caption text-copper-muted">
+          {{ productStore.products.length }} result(s)
+        </p>
+      </v-col>
+    </v-row>
+
     <!-- Products Table -->
     <v-card class="elevation-6 rounded-xl border-bronze bg-surface overflow-x-auto">
       <v-table class="table-responsive bg-transparent text-copper-muted">
@@ -217,6 +241,8 @@ const apiBaseUrl = API_BASE_URL
 
 const saving = ref(false)
 const imagePreviewUrl = ref<string | null>(null)
+const searchQuery = ref('')
+let searchTimeout: number | null = null
 
 const dialog = ref({
   show: false,
@@ -240,6 +266,34 @@ const isPizzaCategory = computed(() => {
   const cat = productStore.categories.find(c => c.id === dialog.value.categoryId)
   return cat ? cat.name.toLowerCase() === 'pizza' || cat.name === 'البيتزا' : false
 })
+
+// Debounced search function (500ms delay)
+const debouncedSearch = () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = window.setTimeout(async () => {
+    await performSearch()
+  }, 500)
+}
+
+const performSearch = async () => {
+  if (!searchQuery.value.trim()) {
+    // If search is empty, load all products
+    productStore.fetchProducts({ page: 1, size: 100 })
+  } else {
+    // Perform server-side search with the query
+    productStore.fetchProducts({ 
+      page: 1, 
+      size: 100,
+      search: searchQuery.value 
+    })
+  }
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  if (searchTimeout) clearTimeout(searchTimeout)
+  productStore.fetchProducts({ page: 1, size: 100 })
+}
 
 const loadData = () => {
   productStore.fetchProducts({ page: 1, size: 100 })
