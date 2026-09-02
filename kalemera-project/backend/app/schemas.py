@@ -103,6 +103,19 @@ ALLOWED_ADDRESSES = (
     "الحي الراقي",
 )
 
+DELIVERY_FEES: dict[str, float] = {
+    "سكن الولاد الداخلي": 20.0,
+    "سكن البنات الداخلي": 15.0,
+    "الحي الراقي": 25.0,
+}
+
+
+def calculate_delivery_fee(address: str | None) -> float:
+    """Return the delivery fee for a validated address, or 0.0 for None/invalid."""
+    if address and address in DELIVERY_FEES:
+        return DELIVERY_FEES[address]
+    return 0.0
+
 
 class OrderCreate(BaseModel):
     items: List[OrderItemCreate] = Field(..., min_length=1, max_length=50)
@@ -136,6 +149,7 @@ class OrderResponse(BaseModel):
     status: OrderStatus
     total_price: float
     delivery_address: Optional[str] = None
+    delivery_fee: float = 0.0
     created_at: datetime
     updated_at: datetime
     items: List[OrderItemResponse]
@@ -147,6 +161,16 @@ class OrderResponse(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
+
+
+class AdminOrderWorkflow(BaseModel):
+    """Admin orders grouped into workflow buckets (new/preparing/ready/delivered/cancelled)."""
+    new: List[OrderResponse]
+    preparing: List[OrderResponse]
+    ready: List[OrderResponse]
+    delivered: List[OrderResponse]
+    cancelled: List[OrderResponse]
+    delivered_total: int = 0
 
 
 # Notification Schemas

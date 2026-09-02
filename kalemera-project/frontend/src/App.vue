@@ -2,6 +2,21 @@
   <v-app :key="localeStore.currentLocale" class="kalmera-app">
     <!-- AppBar -->
     <v-app-bar app color="surface" elevation="4" class="px-2 border-b-bronze">
+      <!-- Back Navigation (history-aware) -->
+      <v-btn
+        v-if="canGoBack"
+        icon
+        color="primary"
+        size="small"
+        :aria-label="localeStore.t('back')"
+        class="mr-1"
+        @click="goBack"
+      >
+        <v-icon size="small">
+          {{ localeStore.currentLocale === 'ar' ? 'mdi-arrow-right' : 'mdi-arrow-left' }}
+        </v-icon>
+      </v-btn>
+
       <!-- Nav Drawer Toggle (Only Customer view/Admin view sidebar) -->
       <v-app-bar-nav-icon aria-label="Toggle Navigation Drawer" @click="drawer = !drawer" color="primary"></v-app-bar-nav-icon>
       
@@ -31,7 +46,7 @@
       <!-- Action Group: Language, Theme, Cart, Notifications -->
       <div class="d-flex align-center ga-1 ga-sm-2">
         <!-- Language Switcher (Text on medium+, icon only on small) -->
-        <v-btn variant="text" color="primary" class="font-weight-black px-1 px-sm-2 text-subtitle-2 rounded-lg hidden-xs-only" @click="toggleLanguage">
+        <v-btn variant="text" color="primary" class="font-weight-black px-1 px-sm-2 text-subtitle-2 rounded-lg hidden-xs" @click="toggleLanguage">
           🌐 {{ localeStore.currentLocale === 'ar' ? 'EN' : 'عربي' }}
         </v-btn>
         <v-btn icon size="small" color="primary" class="d-none d-xs-flex" @click="toggleLanguage" aria-label="Toggle Language">
@@ -101,8 +116,8 @@
           </v-btn>
         </template>
         <template v-else>
-          <v-btn variant="outlined" color="primary" size="small" class="hidden-xs-only rounded-lg" to="/login">{{ localeStore.t('login') }}</v-btn>
-          <v-btn variant="flat" color="secondary" size="small" class="hidden-xs-only rounded-lg" to="/register">{{ localeStore.t('register') }}</v-btn>
+          <v-btn variant="outlined" color="primary" size="small" class="hidden-xs rounded-lg" to="/login">{{ localeStore.t('login') }}</v-btn>
+          <v-btn variant="flat" color="secondary" size="small" class="hidden-xs rounded-lg" to="/register">{{ localeStore.t('register') }}</v-btn>
         </template>
       </div>
     </v-app-bar>
@@ -180,15 +195,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useCartStore } from './stores/cart'
 import { useNotificationStore } from './stores/notifications'
 import { useLocaleStore } from './stores/locale'
 import { useTheme, useLocale } from 'vuetify'
+import { resolveBackTarget } from './utils/navigation'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const cartStore = useCartStore()
 const notificationStore = useNotificationStore()
@@ -202,6 +219,20 @@ const snackbar = ref({
   show: false,
   message: ''
 })
+
+// History-aware back navigation: returns to the actual previous route entry.
+// Falls back to Home only when there is no valid browser/router history.
+const canGoBack = computed(() => route.path !== '/')
+
+const goBack = () => {
+  const target = resolveBackTarget(router.options.history.state)
+  if (target) {
+    router.back()
+  } else {
+    // No valid previous history entry — safe fallback to Home.
+    router.push('/')
+  }
+}
 
 const toggleLanguage = () => {
   const target = localeStore.currentLocale === 'ar' ? 'en' : 'ar'

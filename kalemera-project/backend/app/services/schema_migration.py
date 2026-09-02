@@ -40,6 +40,7 @@ def _required_columns(table: str) -> dict:
     columns: dict[str, str] = {}
     if table == "orders":
         columns["delivery_address"] = "VARCHAR(255) NULL"
+        columns["delivery_fee"] = "NUMERIC(10,2) NOT NULL DEFAULT 0"
     elif table == "order_items":
         columns["product_name_snapshot"] = "VARCHAR(255) NOT NULL DEFAULT ''"
         columns["product_name_en_snapshot"] = "VARCHAR(255) NULL"

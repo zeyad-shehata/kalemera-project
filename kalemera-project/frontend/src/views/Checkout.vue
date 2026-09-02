@@ -64,12 +64,18 @@
                 prepend-inner-icon="mdi-map-marker-radius"
                 class="bg-surface rounded-lg"
                 hide-details
+                :error="showAddressError"
+                :error-messages="addressErrorText"
               ></v-select>
             </v-col>
             <v-col cols="12">
-              <v-chip class="font-weight-bold" color="info" label>
+              <v-chip v-if="deliveryFee" class="font-weight-bold" color="info" label>
                 <v-icon start>mdi-truck-delivery</v-icon>
-                {{ t('freeDelivery') }}
+                {{ t('deliveryFee') }}: {{ deliveryFee.toFixed(2) }} EGP
+              </v-chip>
+              <v-chip v-else class="font-weight-bold" color="grey" label>
+                <v-icon start>mdi-truck-delivery</v-icon>
+                {{ t('selectAddressForFee') }}
               </v-chip>
             </v-col>
           </v-row>
@@ -87,15 +93,16 @@
           </div>
 
           <div class="d-flex justify-space-between mb-3">
-            <span>{{ t('shipping') }}:</span>
-            <span class="font-weight-bold text-success">{{ t('free') }}</span>
+            <span>{{ t('deliveryFee') }}:</span>
+            <span v-if="deliveryFee" class="font-weight-bold text-secondary">{{ deliveryFee.toFixed(2) }} EGP</span>
+            <span v-else class="font-weight-bold text-grey">{{ t('free') }}</span>
           </div>
 
           <v-divider class="my-4"></v-divider>
 
           <div class="d-flex justify-space-between mb-6 text-h5 font-weight-bold">
             <span>{{ t('orderTotal') }}</span>
-            <span class="color-primary">{{ cartStore.subtotal.toFixed(2) }} EGP</span>
+            <span class="color-primary">{{ orderTotal.toFixed(2) }} EGP</span>
           </div>
 
           <v-alert v-if="errorMessage" type="error" variant="tonal" class="mb-4">
@@ -158,13 +165,27 @@ const storeClosed = ref(false)
 let statusTimer: number | null = null
 
 const deliveryOptions = [
-  { label: 'سكن الولاد الداخلي', value: 'سكن الولاد الداخلي' },
-  { label: 'سكن البنات الداخلي', value: 'سكن البنات الداخلي' },
-  { label: 'الحي الراقي', value: 'الحي الراقي' },
+  { label: 'سكن الولاد الداخلي', value: 'سكن الولاد الداخلي', fee: 20 },
+  { label: 'سكن البنات الداخلي', value: 'سكن البنات الداخلي', fee: 15 },
+  { label: 'الحي الراقي', value: 'الحي الراقي', fee: 25 },
 ]
 const deliveryAddress = ref(null as string | null)
+const showAddressError = ref(false)
 
 const shippingName = computed(() => authStore.currentUser?.full_name || '')
+
+const deliveryFee = computed(() => {
+  const opt = deliveryOptions.find((o) => o.value === deliveryAddress.value)
+  return opt ? opt.fee : 0
+})
+
+const orderTotal = computed(() => cartStore.subtotal + deliveryFee.value)
+
+const addressErrorText = computed(() =>
+  localeStore.currentLocale === 'ar'
+    ? 'يرجى اختيار عنوان التوصيل أولاً'
+    : 'Please select a delivery address first'
+)
 
 const checkBusinessHours = async () => {
   try {
@@ -179,12 +200,14 @@ const confirmOrder = async () => {
   if (cartStore.items.length === 0 || storeClosed.value) return
 
   if (!deliveryAddress.value) {
+    showAddressError.value = true
     errorMessage.value = localeStore.currentLocale === 'ar' 
       ? 'يرجى اختيار عنوان التوصيل أولاً'
       : 'Please select a delivery address first'
     return
   }
 
+  showAddressError.value = false
   errorMessage.value = ''
 
   const orderItems = cartStore.items.map((item) => ({

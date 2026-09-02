@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { resolveAuthPageRedirect } from '../utils/navigation'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -104,9 +105,13 @@ router.beforeEach(async (to, _from, next) => {
       next({ path: '/login', query: { redirect: to.fullPath } })
     }
   } else {
-    // Redirect already authenticated users away from auth pages
+    // Redirect already-authenticated users away from auth pages, BUT preserve
+    // the actual previous in-app route instead of forcing Home. This prevents
+    // the stale /login history entry (left behind by the ?redirect= login flow)
+    // from kicking users back to the Home page when they press Back.
     if (isAuthenticated && (to.path === '/login' || to.path === '/register')) {
-      next('/')
+      const previous = resolveAuthPageRedirect(_from.fullPath, to.fullPath)
+      next(previous ? { path: previous, replace: true } : '/')
     } else {
       next()
     }

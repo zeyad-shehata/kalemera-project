@@ -101,9 +101,13 @@ async def test_price_tampering_defense(client: AsyncClient, test_user: User, sam
     assert resp.status_code == 201
     created_order = resp.json()
     
-    # Verify calculated price matches database authoritative price (product price 120.0 * 2 = 240.0)
-    assert created_order["total_price"] == 240.0, "Server accepted tampered price!"
+    # Verify calculated prices come from the database/backend only:
+    # subtotal is authoritative (product price 120.0 * 2 = 240.0), the delivery
+    # fee is server-calculated (الحي الراقي = 25.0), and the tampered 0.01
+    # values are completely ignored.
     assert created_order["items"][0]["subtotal"] == 240.0
+    assert created_order["delivery_fee"] == 25.0
+    assert created_order["total_price"] == 265.0, "Server accepted tampered price!"
 
 
 @pytest.mark.asyncio

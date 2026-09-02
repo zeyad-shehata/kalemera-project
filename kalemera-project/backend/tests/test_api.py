@@ -98,7 +98,8 @@ async def test_orders_flow(client: AsyncClient, db_session: AsyncSession):
     response = await client.post("/api/orders/", json=order_payload)
     assert response.status_code == 201
     order_data = response.json()
-    assert order_data["total_price"] == 240.00
+    assert order_data["total_price"] == 260.00  # 240.00 subtotal + 20.00 delivery fee
+    assert order_data["delivery_fee"] == 20.00
     assert order_data["status"] == "PENDING"
     assert order_data["delivery_address"] == "سكن الولاد الداخلي"
 

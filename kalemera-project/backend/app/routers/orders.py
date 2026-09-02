@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Order, User, UserRole
-from app.schemas import OrderCreate, OrderResponse, OrderStatusUpdate
+from app.schemas import OrderCreate, OrderResponse, OrderStatusUpdate, AdminOrderWorkflow
 from app.security import get_current_user, admin_required
 from app.repositories.order_repository import order_repository
 from app.services.order_service import order_service
@@ -26,6 +26,26 @@ async def list_orders(
     is_admin = (current_user.role == UserRole.ADMIN)
     return await order_repository.list_orders(db, user_id=current_user.id, is_admin=is_admin)
 
+@router.get("/workflow", response_model=AdminOrderWorkflow)
+async def get_admin_workflow(
+    admin_user=Depends(admin_required),
+    db: AsyncSession = Depends(get_db),
+    delivered_limit: int = 50,
+    delivered_offset: int = 0,
+):
+    """Admin-only: return orders grouped into workflow buckets (new/preparing/ready/delivered/cancelled).
+
+    The delivered history is paginated (delivered_limit / delivered_offset) so
+    large delivered histories never need to be loaded fully.
+    """
+    delivered_limit = max(1, min(delivered_limit, 200))
+    delivered_offset = max(0, delivered_offset)
+    return await order_service.get_admin_workflow(
+        db,
+        delivered_limit=delivered_limit,
+        delivered_offset=delivered_offset,
+    )
+
 @router.get("/{order_id}", response_model=OrderResponse)
 async def get_order(
     order_id: int,
@@ -44,7 +64,6 @@ async def get_order(
             detail="You do not have permission to access this order.",
         )
     return order
-
 @router.post("/{order_id}/cancel", response_model=OrderResponse)
 async def cancel_order(
     order_id: int,

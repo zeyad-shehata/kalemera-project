@@ -81,10 +81,32 @@ body {
   min-width: 0;
 }
 
-@media (max-width: 600px) {
-  .v-toolbar__content {
+/* The app bar's brand link and action group must never force the toolbar
+   wider than the phone viewport. Allow the brand title to truncate and the
+   action group's buttons to wrap onto a second line instead of overflowing
+   or clipping on the smallest portrait widths (320px). The icon buttons are
+   kept shrink-proof so they always remain fully visible. */
+.v-app-bar .v-toolbar__content .router-link-active,
+.v-app-bar .v-toolbar__content > a {
+  min-width: 0;
+}
+
+.v-app-bar .v-toolbar__content .v-avatar {
+  flex-shrink: 0;
+}
+
+@media (max-width: 599.98px) {
+  .v-toolbar__content > .d-flex.align-center.ga-1.ga-sm-2 {
     -webkit-flex-wrap: wrap;
     flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .v-toolbar__content > a .text-h6 {
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -139,4 +161,47 @@ h6,
 .text-break-word {
   word-break: break-word;
   overflow-wrap: break-word;
+}
+
+/* ==========================================================================
+   Safe-area insets — modern phones with notches, dynamic islands and rounded
+   corners. env() evaluates to 0px on desktop and regular browsers, so the
+   approved desktop spacing is completely unchanged.
+   ========================================================================== */
+
+/* Header (app bar): extend the surface over the status bar so the toolbar is
+   never clipped by a notch / dynamic island. Vuetify re-measures the layout,
+   so the main content below adjusts automatically. */
+.v-app-bar {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Main content: keep content reachable above the home indicator and clear of
+   rounded screen edges. We compose with the layout vars Vuetify already uses
+   so nothing is double-added on devices without insets (insets == 0). */
+.v-main {
+  padding-right: calc(var(--v-layout-right, 0px) + env(safe-area-inset-right, 0px)) !important;
+  padding-left: calc(var(--v-layout-left, 0px) + env(safe-area-inset-left, 0px)) !important;
+  padding-bottom: calc(var(--v-layout-bottom, 0px) + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* Temporary (mobile) drawer: keep the logo header clear of the status bar and
+   the last navigation item reachable above the home indicator. */
+@media (max-width: 600px) {
+  .v-navigation-drawer--temporary {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .v-navigation-drawer--temporary .v-navigation-drawer__content {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* Vertically centred dialogs: ensure they never collide with the home-indicator
+   zone on short screens (only affects mobile; 0px elsewhere). */
+@media (max-width: 600px) {
+  .v-overlay .v-dialog {
+    margin-top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
+    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px) !important;
+  }
 }

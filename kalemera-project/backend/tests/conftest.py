@@ -1,4 +1,5 @@
 from typing import AsyncGenerator
+import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from httpx import AsyncClient, ASGITransport
@@ -22,6 +23,22 @@ TestingSessionLocal = async_sessionmaker(
     expire_on_commit=False,
     class_=AsyncSession,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Clear the in-memory rate limiter state between tests."""
+    from app.middleware.rate_limiter import RateLimiterMiddleware
+    try:
+        stack = app.middleware_stack
+        current = stack
+        while hasattr(current, 'app'):
+            if isinstance(current, RateLimiterMiddleware):
+                current._requests.clear()
+                break
+            current = current.app
+    except Exception:
+        pass
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

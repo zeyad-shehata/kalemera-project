@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <v-container class="pa-0">
     <div class="d-flex align-center justify-space-between mb-6">
       <div>
@@ -88,8 +88,8 @@
         </v-col>
       </v-row>
 
-      <!-- Admin Orders Management Section -->
-      <v-card class="elevation-6 rounded-xl pa-6 bg-surface border-bronze mt-6 overflow-x-auto">
+      <!-- Admin Orders Management Section (workflow buckets) -->
+      <v-card class="elevation-6 rounded-xl pa-4 pa-sm-6 bg-surface border-bronze mt-6 overflow-hidden">
         <div class="d-flex align-center justify-space-between mb-4">
           <div>
             <h3 class="text-h6 font-weight-bold text-bronze-gradient">{{ t('manageOrders') }}</h3>
@@ -97,81 +97,111 @@
           </div>
         </div>
 
-        <v-table class="table-responsive bg-transparent text-copper-muted">
-          <thead>
-            <tr>
-              <th class="text-left font-weight-bold text-primary">{{ t('orderHeader') }}</th>
-              <th class="text-left font-weight-bold text-primary">{{ t('customerHeader') }}</th>
-              <th class="text-left font-weight-bold text-primary">{{ t('dateHeader') }}</th>
-              <th class="text-left font-weight-bold text-primary">{{ t('totalHeader') }}</th>
-              <th class="text-left font-weight-bold text-primary">{{ t('statusHeader') }}</th>
-              <th class="text-center font-weight-bold text-primary">{{ t('actions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="order in orders" :key="order.id">
-              <td class="font-weight-bold">#{{ order.id }}</td>
-              <td>
-                <div class="font-weight-bold text-copper-muted">{{ order.user?.full_name || 'N/A' }}</div>
-                <div class="text-caption text-copper-muted">{{ order.user?.phone || 'N/A' }}</div>
-              </td>
-              <td>{{ formatDate(order.created_at) }}</td>
-              <td class="font-weight-bold text-primary">{{ order.total_price.toFixed(2) }} EGP</td>
-              <td>
-                <v-chip :color="getStatusColor(order.status)" size="small" class="font-weight-bold text-uppercase">
-                  {{ order.status }}
-                </v-chip>
-              </td>
-              <td class="text-center">
-                <v-menu>
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      color="primary"
-                      variant="tonal"
-                      size="small"
-                      class="font-weight-bold mr-2"
-                      v-bind="props"
-                    >
-                      {{ t('changeStatus') }}
-                    </v-btn>
-                  </template>
-                  <v-list>
-                    <v-list-item
-                      v-for="statusOpt in ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']"
-                      :key="statusOpt"
-                      @click="updateStatus(order.id, statusOpt)"
-                    >
-                      <v-list-item-title class="font-weight-bold">{{ statusOpt }}</v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-                <v-btn
-                  color="secondary"
-                  variant="flat"
-                  size="small"
-                  class="font-weight-bold"
-                  @click="viewOrderDetails(order)"
-                >
-                  {{ t('details') }}
-                </v-btn>
-                <v-btn
-                  color="error"
-                  variant="outlined"
-                  size="small"
-                  class="font-weight-bold"
-                  prepend-icon="mdi-delete"
-                  @click="openDeleteDialog(order)"
-                >
-                  {{ t('delete') }}
-                </v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
+        <!-- Grouped by status: NEW → PREPARING → READY → DELIVERED -->
+        <div v-for="group in workflowGroups" :key="group.key" class="mb-6">
+          <div class="d-flex align-center ga-2 mb-2">
+            <v-icon size="small" :color="group.color">{{ group.icon }}</v-icon>
+            <h4 class="text-subtitle-1 font-weight-bold text-primary">{{ group.label }}</h4>
+            <v-chip size="x-small" :color="group.color" class="font-weight-bold">{{ group.orders.length }}</v-chip>
+          </div>
 
-        <!-- Empty State -->
-        <div v-if="orders.length === 0" class="text-center pa-8 text-copper-muted">
-          {{ t('noOrdersAdmin') }}
+          <template v-if="group.orders.length > 0">
+            <v-list class="bg-transparent pa-0 border-bronze rounded-lg overflow-hidden">
+              <v-list-item
+                v-for="order in group.orders"
+                :key="order.id"
+                lines="two"
+                class="border-bottom bg-surface-variant"
+              >
+                <template v-slot:prepend>
+                  <v-avatar color="primary" variant="tonal" size="38" class="mr-2">
+                    <span class="font-weight-black text-primary">#{{ order.id }}</span>
+                  </v-avatar>
+                </template>
+
+                <v-list-item-title class="font-weight-bold d-flex align-center flex-wrap ga-2">
+                  <span class="text-copper-muted">{{ order.user?.full_name || 'N/A' }}</span>
+                  <v-chip :color="getStatusColor(order.status)" size="x-small" class="font-weight-bold text-uppercase">
+                    {{ order.status }}
+                  </v-chip>
+                  <span class="text-caption text-grey">{{ order.user?.phone || '' }}</span>
+                </v-list-item-title>
+
+                <v-list-item-subtitle class="text-copper-muted d-flex align-center flex-wrap ga-3">
+                  <span>{{ formatDate(order.created_at) }}</span>
+                  <span class="font-weight-bold text-primary">{{ order.total_price.toFixed(2) }} EGP</span>
+                  <span v-if="order.delivery_address" class="text-caption">{{ order.delivery_address }}</span>
+                </v-list-item-subtitle>
+
+                <template v-slot:append>
+                  <div class="d-flex align-center ga-1 flex-wrap">
+                    <v-menu v-if="group.key !== 'delivered'">
+                      <template v-slot:activator="{ props }">
+                        <v-btn
+                          color="primary"
+                          variant="tonal"
+                          size="x-small"
+                          class="font-weight-bold"
+                          v-bind="props"
+                        >
+                          {{ t('changeStatus') }}
+                        </v-btn>
+                      </template>
+                      <v-list>
+                        <v-list-item
+                          v-for="statusOpt in statusOptionsFor(order.status)"
+                          :key="statusOpt"
+                          @click="updateStatus(order.id, statusOpt)"
+                        >
+                          <v-list-item-title class="font-weight-bold">{{ statusOpt }}</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-menu>
+                    <v-btn
+                      color="secondary"
+                      variant="flat"
+                      size="x-small"
+                      class="font-weight-bold"
+                      @click="viewOrderDetails(order)"
+                    >
+                      {{ t('details') }}
+                    </v-btn>
+                    <v-btn
+                      v-if="group.key !== 'delivered'"
+                      color="error"
+                      variant="outlined"
+                      size="x-small"
+                      class="font-weight-bold"
+                      prepend-icon="mdi-delete"
+                      @click="openDeleteDialog(order)"
+                    >
+                      {{ t('delete') }}
+                    </v-btn>
+                  </div>
+                </template>
+              </v-list-item>
+            </v-list>
+          </template>
+          <div v-else class="text-center text-copper-muted pa-4 bg-surface-variant rounded-lg border-bronze">
+            {{ t('noOrdersAdmin') }}
+          </div>
+        </div>
+
+        <!-- Delivered history pagination (avoid loading all rows on Neon) -->
+        <div
+          v-if="workflow.delivered.length < workflow.delivered_total"
+          class="text-center mt-2"
+        >
+          <v-btn
+            color="primary"
+            variant="outlined"
+            size="small"
+            class="font-weight-bold"
+            :loading="loadingMoreDelivered"
+            @click="loadMoreDelivered"
+          >
+            {{ t('loadMoreDelivered', { shown: workflow.delivered.length, total: workflow.delivered_total }) }}
+          </v-btn>
         </div>
       </v-card>
 
@@ -211,7 +241,15 @@
               </v-list-item>
             </v-list>
             <v-divider class="my-4 border-bronze"></v-divider>
-            <div class="d-flex justify-space-between text-h6 font-weight-black text-primary">
+            <div v-if="selectedOrder" class="d-flex justify-space-between text-subtitle-1 text-copper-muted">
+              <span>{{ t('subtotal') }}</span>
+              <span>{{ (selectedOrder.total_price - (selectedOrder.delivery_fee || 0)).toFixed(2) }} EGP</span>
+            </div>
+            <div v-if="selectedOrder?.delivery_fee" class="d-flex justify-space-between text-subtitle-1 text-copper-muted mt-1">
+              <span>{{ t('deliveryFee') }}</span>
+              <span>{{ selectedOrder.delivery_fee.toFixed(2) }} EGP</span>
+            </div>
+            <div class="d-flex justify-space-between text-h6 font-weight-black text-primary mt-2">
               <span>{{ t('orderTotal') }}</span>
               <span>{{ selectedOrder?.total_price.toFixed(2) }} EGP</span>
             </div>
@@ -277,13 +315,51 @@ import { formatAppDate } from '../../utils/date'
 const adminStore = useAdminStore()
 const localeStore = useLocaleStore()
 const { t } = localeStore
-const orders = ref<Order[]>([])
+
+interface WorkflowData {
+  new: Order[]
+  preparing: Order[]
+  ready: Order[]
+  delivered: Order[]
+  cancelled: Order[]
+  delivered_total: number
+}
+
+const workflow = ref<WorkflowData>({
+  new: [],
+  preparing: [],
+  ready: [],
+  delivered: [],
+  cancelled: [],
+  delivered_total: 0,
+})
+const deliveredOffset = ref(0)
+const deliveredLimit = 50
+const loadingMoreDelivered = ref(false)
 const detailsDialog = ref(false)
 const selectedOrder = ref<Order | null>(null)
 
 const deleteDialog = ref(false)
 const deleteTarget = ref<Order | null>(null)
 const deleting = ref(false)
+
+const workflowGroups = computed(() => [
+  { key: 'new',       label: t('newOrders'),       color: 'warning', icon: 'mdi-inbox-arrow-down', orders: workflow.value.new },
+  { key: 'preparing', label: t('preparingOrders'), color: 'info',    icon: 'mdi-silverware-fork-knife', orders: workflow.value.preparing },
+  { key: 'ready',     label: t('readyOrders'),     color: 'secondary', icon: 'mdi-package-variant', orders: workflow.value.ready },
+  { key: 'delivered', label: t('deliveredOrders'), color: 'success', icon: 'mdi-check-decagram',    orders: workflow.value.delivered },
+])
+
+// Logical transition options per current status:
+// NEW → PREPARING / CANCELLED ; PREPARING → READY / CANCELLED ; READY → DELIVERED / CANCELLED
+const statusOptionsFor = (status: string) => {
+  switch (status) {
+    case 'PENDING': return ['PROCESSING', 'CANCELLED']
+    case 'PROCESSING': return ['SHIPPED', 'CANCELLED']
+    case 'SHIPPED': return ['DELIVERED', 'CANCELLED']
+    default: return []
+  }
+}
 
 const openDeleteDialog = (order: Order) => {
   deleteTarget.value = order
@@ -305,22 +381,48 @@ const confirmDeleteOrder = async () => {
   }
 }
 
-const loadOrders = async () => {
+const loadWorkflow = async () => {
   try {
-    const response = await api.get<Order[]>('/api/orders/')
-    orders.value = response.data
+    const response = await api.get<WorkflowData>('/api/orders/workflow', {
+      params: { delivered_limit: deliveredLimit, delivered_offset: deliveredOffset.value },
+    })
+    workflow.value = {
+      new: response.data.new || [],
+      preparing: response.data.preparing || [],
+      ready: response.data.ready || [],
+      delivered: response.data.delivered || [],
+      cancelled: response.data.cancelled || [],
+      delivered_total: response.data.delivered_total || 0,
+    }
   } catch (error) {
     console.error(error)
+  }
+}
+
+const loadMoreDelivered = async () => {
+  loadingMoreDelivered.value = true
+  try {
+    deliveredOffset.value += deliveredLimit
+    const response = await api.get<WorkflowData>('/api/orders/workflow', {
+      params: { delivered_limit: deliveredLimit, delivered_offset: deliveredOffset.value },
+    })
+    const more = response.data.delivered || []
+    workflow.value.delivered = [...workflow.value.delivered, ...more]
+    workflow.value.delivered_total = response.data.delivered_total || workflow.value.delivered_total
+  } catch (error) {
+    console.error(error)
+  } finally {
+    loadingMoreDelivered.value = false
   }
 }
 
 const updateStatus = async (orderId: number, status: string) => {
   try {
     await adminStore.updateOrderStatus(orderId, status)
-    await loadOrders()
+    await loadWorkflow()
     await loadData()
   } catch (error) {
-    alert('Failed to update status.')
+    alert(t('statusUpdateFailed'))
   }
 }
 
@@ -331,7 +433,7 @@ const viewOrderDetails = (order: Order) => {
 
 const loadData = () => {
   adminStore.fetchDashboardSummary()
-  loadOrders()
+  loadWorkflow()
 }
 
 onMounted(() => {
@@ -410,3 +512,4 @@ const chartOptions = {
   border-left: 6px solid #C5853B !important;
 }
 </style>
+

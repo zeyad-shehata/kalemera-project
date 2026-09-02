@@ -87,6 +87,20 @@
                   <span class="text-caption text-grey">{{ t('lastUpdated') }}</span>
                   <div class="text-body-2">{{ formatDate(order.updated_at) }}</div>
                 </v-col>
+                <v-col cols="12" sm="6">
+                  <div class="text-body-2" v-if="order.delivery_address">
+                    <span class="text-caption text-grey">{{ t('deliveryAddress') }}:</span>
+                    <span class="font-weight-bold"> {{ order.delivery_address }}</span>
+                  </div>
+                  <div class="text-body-2" v-if="order.delivery_fee">
+                    <span class="text-caption text-grey">{{ t('deliveryFee') }}:</span>
+                    <span class="font-weight-bold"> {{ order.delivery_fee.toFixed(2) }} EGP</span>
+                  </div>
+                  <div class="text-body-2">
+                    <span class="text-caption text-grey">{{ t('subtotal') }}:</span>
+                    <span class="font-weight-bold"> {{ (order.total_price - (order.delivery_fee || 0)).toFixed(2) }} EGP</span>
+                  </div>
+                </v-col>
                 <v-col cols="12" sm="6" class="text-sm-right" v-if="order.status === 'PENDING'">
                   <v-btn color="error" variant="outlined" size="small" class="font-weight-bold" @click="cancelOrder(order.id)">
                     {{ t('cancelOrder') }}

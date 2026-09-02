@@ -115,6 +115,7 @@ class Order(Base):
     )
     total_price: Mapped[float] = mapped_column(Numeric(10, 2), default=0.00, nullable=False)
     delivery_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    delivery_fee: Mapped[float] = mapped_column(Numeric(10, 2), default=0.00, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, index=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,

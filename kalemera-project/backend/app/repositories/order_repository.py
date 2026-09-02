@@ -2,18 +2,20 @@ from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy import func
 
 from app.models import Order, OrderItem, Product, OrderStatus
 
 class OrderRepository:
     async def create(
-        self, db: AsyncSession, user_id: int, total_price: float, items: List[OrderItem], delivery_address: Optional[str] = None
+        self, db: AsyncSession, user_id: int, total_price: float, items: List[OrderItem], delivery_address: Optional[str] = None, delivery_fee: float = 0.0
     ) -> Order:
         order = Order(
             user_id=user_id,
             status=OrderStatus.PENDING,
             total_price=total_price,
             delivery_address=delivery_address,
+            delivery_fee=delivery_fee,
             items=items,
         )
         db.add(order)
@@ -31,6 +33,56 @@ class OrderRepository:
 
         result = await db.execute(query)
         return result.scalars().all()
+
+    async def list_orders_by_status(
+        self, db: AsyncSession, status: OrderStatus, limit: Optional[int] = None, offset: int = 0
+    ) -> List[Order]:
+        """Efficient server-side filtering of orders by status (FIFO within each status)."""
+        query = (
+            select(Order)
+            .options(selectinload(Order.items), selectinload(Order.user))
+            .where(Order.status == status)
+            .order_by(Order.created_at.asc(), Order.id.asc())
+        )
+        if offset > 0:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+        result = await db.execute(query)
+        return result.scalars().all()
+
+    async def count_orders_by_status(self, db: AsyncSession, status: OrderStatus) -> int:
+        """Efficient COUNT(*) for an order status (used for delivered history pagination)."""
+        result = await db.execute(
+            select(func.count()).select_from(Order).where(Order.status == status)
+        )
+        return int(result.scalar() or 0)
+
+    async def list_admin_orders_workflow(
+        self, db: AsyncSession, delivered_limit: int = 50, delivered_offset: int = 0
+    ) -> dict:
+        """Return orders grouped by workflow bucket for the Admin Orders UI.
+
+        Active states (NEW/PREPARING/READY) are returned fully, oldest-first
+        (FIFO). The delivered history is paginated to avoid loading all
+        historical rows — this is important on Neon to keep IO low.
+        """
+        new_orders = await self.list_orders_by_status(db, OrderStatus.PENDING)
+        preparing_orders = await self.list_orders_by_status(db, OrderStatus.PROCESSING)
+        ready_orders = await self.list_orders_by_status(db, OrderStatus.SHIPPED)
+        delivered_orders = await self.list_orders_by_status(
+            db, OrderStatus.DELIVERED, limit=delivered_limit, offset=delivered_offset
+        )
+        delivered_total = await self.count_orders_by_status(db, OrderStatus.DELIVERED)
+        cancelled_orders = await self.list_orders_by_status(db, OrderStatus.CANCELLED)
+        return {
+            "new": new_orders,
+            "preparing": preparing_orders,
+            "ready": ready_orders,
+            "delivered": delivered_orders,
+            "cancelled": cancelled_orders,
+            "delivered_total": delivered_total,
+        }
 
     async def get_by_id(self, db: AsyncSession, order_id: int) -> Optional[Order]:
         result = await db.execute(

@@ -6,7 +6,14 @@ from app.models import Order, OrderItem, Product, User, UserRole, OrderStatus, N
 from app.repositories.order_repository import order_repository
 from app.repositories.product_repository import product_repository
 from app.repositories.notification_repository import notification_repository
-from app.schemas import OrderCreate, OrderStatusUpdate, ALLOWED_ADDRESSES
+from app.schemas import (
+    OrderCreate,
+    OrderStatusUpdate,
+    ALLOWED_ADDRESSES,
+    calculate_delivery_fee,
+    OrderResponse,
+    AdminOrderWorkflow,
+)
 from app.services.business_hours import is_store_closed, closed_message
 
 class OrderService:
@@ -96,19 +103,24 @@ class OrderService:
             )
             order_items_to_create.append(order_item)
 
+        # Calculate delivery fee server-side (authoritative)
+        delivery_fee = calculate_delivery_fee(order_in.delivery_address)
+        total_price += delivery_fee
+
         new_order = await order_repository.create(
             db=db,
             user_id=current_user.id,
             total_price=total_price,
             items=order_items_to_create,
             delivery_address=order_in.delivery_address,
+            delivery_fee=delivery_fee,
         )
 
         # Notify buyer
         await notification_repository.create(
             db=db,
             user_id=current_user.id,
-            message=f"Order #{new_order.id} has been placed successfully. Total: {total_price:.2f} EGP."
+            message=f"Order #{new_order.id} has been placed successfully. Subtotal: {total_price - delivery_fee:.2f} EGP, Delivery: {delivery_fee:.2f} EGP, Total: {total_price:.2f} EGP."
         )
         await db.commit()
 
@@ -183,21 +195,62 @@ class OrderService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Order not found."
             )
 
+        current = order.status
+        target = status_update.status
+
+        # Enforce logical forward transitions (NEW -> PREPARING -> READY -> DELIVERED)
+        # CANCELLED is allowed from PENDING (same as existing cancel logic), and admin may
+        # move a non-delivered order back when explicitly requested, but we prevent
+        # nonsensical forwards skips and backward jumps.
+        forward_map = {
+            OrderStatus.PENDING: {OrderStatus.PROCESSING, OrderStatus.CANCELLED, OrderStatus.SHIPPED, OrderStatus.DELIVERED},
+            OrderStatus.PROCESSING: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
+            OrderStatus.SHIPPED: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
+            OrderStatus.DELIVERED: set(),
+            OrderStatus.CANCELLED: set(),
+        }
+
+        allowed = forward_map.get(current, set())
+
+        if target not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status transition from {current.value} to {target.value}.",
+            )
+
         if (
-            status_update.status == OrderStatus.CANCELLED
-            and order.status != OrderStatus.CANCELLED
+            target == OrderStatus.CANCELLED
+            and current != OrderStatus.CANCELLED
         ):
             await order_repository.restore_stock_for_order(db, order)
 
-        order.status = status_update.status
+        order.status = target
 
         await notification_repository.create(
             db=db,
             user_id=order.user_id,
-            message=f"Order #{order.id} status has been updated to: {status_update.status.value}."
+            message=f"Order #{order.id} status has been updated to: {target.value}."
         )
 
         await db.commit()
         return await order_repository.get_by_id(db, order.id)
+
+    async def get_admin_workflow(
+        self, db: AsyncSession, delivered_limit: int = 50, delivered_offset: int = 0
+    ) -> AdminOrderWorkflow:
+        """Return orders grouped by workflow bucket for the Admin Orders UI."""
+        workflow = await order_repository.list_admin_orders_workflow(
+            db,
+            delivered_limit=delivered_limit,
+            delivered_offset=delivered_offset,
+        )
+        return AdminOrderWorkflow(
+            new=[OrderResponse.model_validate(o) for o in workflow["new"]],
+            preparing=[OrderResponse.model_validate(o) for o in workflow["preparing"]],
+            ready=[OrderResponse.model_validate(o) for o in workflow["ready"]],
+            delivered=[OrderResponse.model_validate(o) for o in workflow["delivered"]],
+            cancelled=[OrderResponse.model_validate(o) for o in workflow["cancelled"]],
+            delivered_total=workflow["delivered_total"],
+        )
 
 order_service = OrderService()
