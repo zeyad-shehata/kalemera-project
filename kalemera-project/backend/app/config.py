@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     TEMP_DIR: str = str(DEFAULT_STORAGE_BASE / "storage" / "temp")
     BACKUPS_DIR: str = str(DEFAULT_STORAGE_BASE / "storage" / "backups")
 
+    # Cloud Object Storage (S3 / Cloudflare R2 / Supabase / Vercel Blob)
+    S3_BUCKET_NAME: str | None = None
+    S3_ACCESS_KEY_ID: str | None = None
+    S3_SECRET_ACCESS_KEY: str | None = None
+    S3_REGION_NAME: str | None = None
+    S3_ENDPOINT_URL: str | None = None
+    S3_PUBLIC_URL: str | None = None
+
     # Image Optimization & Limits
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB maximum incoming upload file
     IMAGE_MAX_WIDTH: int = 1200

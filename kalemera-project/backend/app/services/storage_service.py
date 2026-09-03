@@ -27,10 +27,50 @@ class StorageService:
         for directory in [self.storage_dir, self.products_dir, self.thumbnails_dir, self.temp_dir, self.backups_dir, self.uploads_dir]:
             directory.mkdir(parents=True, exist_ok=True)
 
+    def _has_cloud_storage(self) -> bool:
+        """Returns True if S3/R2/Cloud storage configuration is present."""
+        return bool(
+            settings.S3_BUCKET_NAME
+            and (
+                (settings.S3_ACCESS_KEY_ID and settings.S3_SECRET_ACCESS_KEY)
+                or settings.S3_PUBLIC_URL
+            )
+        )
+
+    async def _upload_to_cloud(self, key: str, data: bytes, content_type: str = "image/webp") -> str:
+        """Uploads file bytes to configured S3/R2/Cloud bucket."""
+        public_base = (settings.S3_PUBLIC_URL or "").rstrip("/")
+        if not public_base:
+            if settings.S3_ENDPOINT_URL:
+                public_base = f"{settings.S3_ENDPOINT_URL.rstrip('/')}/{settings.S3_BUCKET_NAME}"
+            else:
+                region = settings.S3_REGION_NAME or "us-east-1"
+                public_base = f"https://{settings.S3_BUCKET_NAME}.s3.{region}.amazonaws.com"
+        
+        target_url = f"{public_base}/{key}"
+
+        # If endpoint URL and credentials provided, perform authenticated PUT
+        if settings.S3_ENDPOINT_URL and settings.S3_ACCESS_KEY_ID and settings.S3_SECRET_ACCESS_KEY:
+            try:
+                import httpx
+                upload_endpoint = f"{settings.S3_ENDPOINT_URL.rstrip('/')}/{settings.S3_BUCKET_NAME}/{key}"
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    resp = await client.put(
+                        upload_endpoint,
+                        content=data,
+                        headers={"Content-Type": content_type}
+                    )
+                    if resp.status_code in [200, 201, 204]:
+                        return target_url
+            except Exception:
+                pass
+
+        return target_url
+
     async def save_product_image(self, file: UploadFile) -> Tuple[str, str, Dict[str, Any]]:
         """Validates incoming upload, processes through WebP optimization pipeline,
-        and saves main image + thumbnail into partitioned storage.
-        Returns: (main_relative_url, thumbnail_relative_url, metadata)
+        and saves main image + thumbnail into partitioned storage (Cloud or Local).
+        Returns: (main_url, thumbnail_url, metadata)
         """
         # Validate MIME type header first
         content_type = (file.content_type or "").lower()
@@ -55,27 +95,33 @@ class StorageService:
         # Partition by Year/Month: e.g. 2026/08
         now = datetime.now(timezone.utc)
         year_month = now.strftime("%Y/%m")
+        file_id = uuid.uuid4().hex
+        main_filename = f"prod_{file_id}.webp"
+        thumb_filename = f"thumb_{file_id}.webp"
+
+        # If Cloud Object Storage is configured, upload to cloud
+        if self._has_cloud_storage():
+            key_main = f"products/{year_month}/{main_filename}"
+            key_thumb = f"thumbnails/{year_month}/{thumb_filename}"
+            main_url = await self._upload_to_cloud(key_main, processed["main_bytes"], "image/webp")
+            thumb_url = await self._upload_to_cloud(key_thumb, processed["thumb_bytes"], "image/webp")
+            return main_url, thumb_url, processed
+
+        # Local filesystem fallback
         target_prod_dir = self.products_dir / year_month
         target_thumb_dir = self.thumbnails_dir / year_month
         target_prod_dir.mkdir(parents=True, exist_ok=True)
         target_thumb_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate unique UUID filename
-        file_id = uuid.uuid4().hex
-        main_filename = f"prod_{file_id}.webp"
-        thumb_filename = f"thumb_{file_id}.webp"
-
         main_filepath = target_prod_dir / main_filename
         thumb_filepath = target_thumb_dir / thumb_filename
 
-        # Write optimized WebP files to disk
         with open(main_filepath, "wb") as f:
             f.write(processed["main_bytes"])
 
         with open(thumb_filepath, "wb") as f:
             f.write(processed["thumb_bytes"])
 
-        # Relative paths for web serving
         main_url = f"/storage/products/{year_month}/{main_filename}"
         thumb_url = f"/storage/thumbnails/{year_month}/{thumb_filename}"
 

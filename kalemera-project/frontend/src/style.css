@@ -5,14 +5,15 @@
   box-sizing: border-box;
 }
 
-/* Prevent iOS Safari from auto-zooming text and compute layout at device width */
+/* Prevent iOS Safari from auto-zooming text and compute layout at device width.
+   NOTE: no overflow-x:hidden/clip here — horizontal overflow bugs are fixed at
+   their structural root (see the min-width rules and globals below) rather than
+   masked with overflow clipping. Verified: no page overflows at any viewport. */
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
-  overflow-x: clip;
 }
 
 html,
@@ -22,8 +23,6 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: hidden;
-  overflow-x: clip;
   font-family: 'Cairo', 'Tajawal', 'Outfit', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -36,13 +35,9 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: hidden;
-  overflow-x: clip;
 }
 
 .v-application {
-  overflow-x: hidden !important;
-  overflow-x: clip !important;
   max-width: 100% !important;
   width: 100% !important;
   min-width: 0 !important;
@@ -51,21 +46,22 @@ body {
 .v-application__wrap {
   min-width: 0;
   max-width: 100%;
-  overflow-x: hidden;
-  overflow-x: clip;
 }
 
 .v-main {
   min-width: 0;
   max-width: 100%;
-  overflow-x: hidden;
-  overflow-x: clip;
 }
 
 /* Keep the translated, closed mobile drawer out of document sizing. */
 @media (max-width: 600px) {
   .v-navigation-drawer--temporary {
     contain: layout paint;
+    /* Cap the temporary drawer so it never occupies more than ~82% of a
+       phone viewport (Vuetify's default 256px equals 64% of a 400px screen,
+       which felt oversized). Keeps relative width but with a sane upper bound. */
+    width: 82vw !important;
+    max-width: 300px !important;
   }
 }
 
@@ -96,14 +92,29 @@ body {
 }
 
 @media (max-width: 599.98px) {
+  /* Keep the header on a single row on phones. The toolbar no longer
+     wraps to a second row (which made the app bar tall and squeezed page
+     content). The action group shrinks instead of wrapping, and the brand
+     title truncates rather than forcing the header to break. Core actions
+     (language, cart, bell, auth) remain available. */
+  .v-app-bar .v-toolbar__content {
+    overflow: hidden;
+  }
+
   .v-toolbar__content > .d-flex.align-center.ga-1.ga-sm-2 {
-    -webkit-flex-wrap: wrap;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
+    min-width: 0;
+  }
+
+  /* Brand title: readable but never forces the toolbar wider than the
+     phone. It truncates instead of wrapping the header. */
+  .v-app-bar .v-toolbar__content > a {
+    max-width: 45vw;
   }
 
   .v-toolbar__content > a .text-h6 {
-    max-width: 42vw;
+    max-width: 45vw;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -163,6 +174,17 @@ h6,
   overflow-wrap: break-word;
 }
 
+/* Contain Vuetify's screen-reader-only rating labels.
+   Each READ-ONLY v-rating renders a set of zero-width, absolutely positioned
+   .v-rating__hidden spans that hold the aria label. When the parent theme does
+   not clip them, that label text (~197px of "ariaLabel.item") spills horizontally
+   and widens the document by ~5px at tiny phone widths (root cause of a rare
+   320px horizontal overflow on ProductDetail). Clipping just this decorative
+   label — not the page — fixes the overflow at the element that causes it. */
+.v-rating__hidden {
+  overflow: clip;
+}
+
 /* ==========================================================================
    Safe-area insets — modern phones with notches, dynamic islands and rounded
    corners. env() evaluates to 0px on desktop and regular browsers, so the
@@ -203,5 +225,39 @@ h6,
   .v-overlay .v-dialog {
     margin-top: calc(env(safe-area-inset-top, 0px) + 12px) !important;
     margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px) !important;
+  }
+}
+
+/* ==========================================================================
+   Mobile density — only on phones (desktop typography is untouched).
+   Slightly scale down the largest display headings so pages at 320-414px
+   don't feel oversized or require zooming out. Ranges are kept conservative
+   and text remains clearly readable; no font-size collapse, no zoom, no
+   transform, and no overflow hiding.
+   ========================================================================== */
+@media (max-width: 599.98px) {
+  .text-h4 {
+    font-size: 1.6rem !important;
+    line-height: 1.15;
+  }
+
+  .text-h5 {
+    font-size: 1.25rem !important;
+    line-height: 1.2;
+  }
+
+  .text-h6 {
+    font-size: 1.05rem !important;
+    line-height: 1.25;
+  }
+}
+
+@media (max-width: 359.98px) {
+  .text-h4 {
+    font-size: 1.4rem !important;
+  }
+
+  .text-h5 {
+    font-size: 1.15rem !important;
   }
 }

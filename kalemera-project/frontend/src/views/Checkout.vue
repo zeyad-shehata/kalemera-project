@@ -16,7 +16,7 @@
             >
               <template v-slot:prepend>
                 <v-img
-                  :src="item.product.image_path ? `${apiBaseUrl}${item.product.image_path}` : 'https://placehold.co/100x75?text=No+Image'"
+                  :src="resolveImageUrl(item.product.image_path, 'https://placehold.co/100x75?text=No+Image')"
                   width="60"
                   height="45"
                   cover
@@ -49,7 +49,7 @@
               <v-text-field :label="t('fullName')" v-model="shippingName" variant="outlined" density="comfortable" readonly></v-text-field>
             </v-col>
             <v-col cols="12" sm="6">
-              <v-text-field :label="t('phoneNumber')" variant="outlined" density="comfortable" :value="authStore.currentUser?.phone || ''" readonly></v-text-field>
+              <v-text-field :label="t('phoneNumber')" variant="outlined" density="comfortable" :value="authStore.currentUser?.phone || ''" readonly dir="ltr" prepend-inner-icon="mdi-phone"></v-text-field>
             </v-col>
             <v-col cols="12">
               <v-select
@@ -150,7 +150,8 @@ import { useCartStore } from '../stores/cart'
 import { useOrderStore } from '../stores/orders'
 import { useAuthStore } from '../stores/auth'
 import { useLocaleStore } from '../stores/locale'
-import api, { API_BASE_URL } from '../api'
+import { resolveImageUrl } from '../utils/image'
+import api from '../api'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -159,7 +160,6 @@ const authStore = useAuthStore()
 const localeStore = useLocaleStore()
 const { t } = localeStore
 
-const apiBaseUrl = API_BASE_URL
 const errorMessage = ref('')
 const storeClosed = ref(false)
 let statusTimer: number | null = null

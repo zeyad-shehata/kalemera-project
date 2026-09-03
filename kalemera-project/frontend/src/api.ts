@@ -4,9 +4,11 @@ import router from './router'
 const API_BASE_URL =
   import.meta.env.VITE_API_URL !== undefined
     ? import.meta.env.VITE_API_URL
-    : import.meta.env.PROD
-      ? ''
-      : 'http://localhost:8000'
+    : typeof window !== 'undefined' && window.location.hostname === '127.0.0.1' && window.location.port === '5173'
+      ? 'http://127.0.0.1:8000'
+      : import.meta.env.PROD
+        ? ''
+        : 'http://127.0.0.1:8000'
 
 const api = axios.create({
   baseURL: API_BASE_URL,

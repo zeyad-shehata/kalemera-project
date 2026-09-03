@@ -51,7 +51,7 @@
           <tr v-for="product in productStore.products" :key="product.id">
             <td>
               <v-img
-                :src="product.image_path ? `${apiBaseUrl}${product.image_path}` : 'https://placehold.co/100x75?text=Kalmera'"
+                :src="resolveImageUrl(product.image_path, 'https://placehold.co/100x75?text=Kalmera')"
                 width="60"
                 height="45"
                 cover
@@ -231,13 +231,12 @@ import { useProductStore } from '../../stores/products'
 import type { Product } from '../../types'
 import { useAdminStore } from '../../stores/admin'
 import { useLocaleStore } from '../../stores/locale'
-import { API_BASE_URL } from '../../api'
+import { resolveImageUrl } from '../../utils/image'
 import FileUploader from '../../components/FileUploader.vue'
 
 const productStore = useProductStore()
 const adminStore = useAdminStore()
 const { t } = useLocaleStore()
-const apiBaseUrl = API_BASE_URL
 
 const saving = ref(false)
 const imagePreviewUrl = ref<string | null>(null)
@@ -351,7 +350,7 @@ const openEditDialog = (product: Product) => {
     imageFile: null,
     removeImageFlag: false,
   }
-  imagePreviewUrl.value = product.image_path ? `${apiBaseUrl}${product.image_path}` : null
+  imagePreviewUrl.value = product.image_path ? resolveImageUrl(product.image_path) : null
 }
 
 const closeDialog = () => {

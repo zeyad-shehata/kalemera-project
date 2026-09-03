@@ -22,7 +22,7 @@
           <!-- Even though there is a single image path, we use v-carousel to support multiple slides or fallbacks -->
           <v-carousel hide-delimiters show-arrows="hover" height="400">
             <v-carousel-item
-              :src="productStore.currentProduct.image_path ? `${apiBaseUrl}${productStore.currentProduct.image_path}` : 'https://placehold.co/600x450?text=No+Image'"
+              :src="resolveImageUrl(productStore.currentProduct?.image_path)"
               cover
             ></v-carousel-item>
             <!-- Carousel placeholders for rich aesthetic effect -->
@@ -127,15 +127,13 @@ import { useRoute } from 'vue-router'
 import { useProductStore } from '../stores/products'
 import { useLocaleStore } from '../stores/locale'
 import { useCartStore } from '../stores/cart'
-import { API_BASE_URL } from '../api'
+import { resolveImageUrl } from '../utils/image'
 
 const route = useRoute()
 const productStore = useProductStore()
 const cartStore = useCartStore()
 const localeStore = useLocaleStore()
 const { t } = localeStore
- 
-const apiBaseUrl = API_BASE_URL
 const qty = ref(1)
 const selectedVariantId = ref<number | null>(null)
  

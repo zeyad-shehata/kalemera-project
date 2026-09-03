@@ -76,7 +76,7 @@
 import { computed } from 'vue'
 import type { Product, ProductVariant } from '../types'
 import { useLocaleStore } from '../stores/locale'
-import { API_BASE_URL } from '../api'
+import { resolveImageUrl } from '../utils/image'
 
 const props = defineProps<{
   product: Product
@@ -110,10 +110,7 @@ const displayDescription = computed(() => {
 })
 
 const productImageSrc = computed(() => {
-  if (props.product.image_path) {
-    return `${API_BASE_URL}${props.product.image_path}`
-  }
-  return 'https://placehold.co/400x300/1e1a17/d49b54?text=Kalmera'
+  return resolveImageUrl(props.product.image_path)
 })
 
 const minVariantPrice = computed(() => {

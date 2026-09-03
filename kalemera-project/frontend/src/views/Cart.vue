@@ -33,7 +33,7 @@
                 <td class="py-4">
                   <div class="d-flex align-center">
                     <v-img
-                      :src="item.product.image_path ? `${apiBaseUrl}${item.product.image_path}` : 'https://placehold.co/100x75?text=No+Image'"
+                      :src="resolveImageUrl(item.product.image_path, 'https://placehold.co/100x75?text=No+Image')"
                       width="70"
                       height="50"
                       cover
@@ -152,10 +152,9 @@
 <script setup lang="ts">
 import { useCartStore } from '../stores/cart'
 import { useLocaleStore } from '../stores/locale'
-import { API_BASE_URL } from '../api'
+import { resolveImageUrl } from '../utils/image'
 
 const cartStore = useCartStore()
 const localeStore = useLocaleStore()
 const { t } = localeStore
-const apiBaseUrl = API_BASE_URL
 </script>

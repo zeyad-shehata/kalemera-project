@@ -1,5 +1,6 @@
 from typing import List, Optional
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Order, OrderItem, Product, User, UserRole, OrderStatus, Notification
@@ -122,6 +123,19 @@ class OrderService:
             user_id=current_user.id,
             message=f"Order #{new_order.id} has been placed successfully. Subtotal: {total_price - delivery_fee:.2f} EGP, Delivery: {delivery_fee:.2f} EGP, Total: {total_price:.2f} EGP."
         )
+
+        # Notify all admins about the incoming new order
+        admin_users_res = await db.execute(select(User).where(User.role == UserRole.ADMIN))
+        admin_users = admin_users_res.scalars().all()
+        customer_name = current_user.full_name or current_user.phone or "Customer"
+        for admin_user in admin_users:
+            if admin_user.id != current_user.id:
+                await notification_repository.create(
+                    db=db,
+                    user_id=admin_user.id,
+                    message=f"طلب جديد #{new_order.id} من {customer_name} - الإجمالي: {total_price:.2f} EGP - العنوان: {order_in.delivery_address}"
+                )
+
         await db.commit()
 
         return await order_repository.get_by_id(db, new_order.id)

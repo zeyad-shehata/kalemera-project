@@ -46,15 +46,16 @@
       <!-- Action Group: Language, Theme, Cart, Notifications -->
       <div class="d-flex align-center ga-1 ga-sm-2">
         <!-- Language Switcher (Text on medium+, icon only on small) -->
-        <v-btn variant="text" color="primary" class="font-weight-black px-1 px-sm-2 text-subtitle-2 rounded-lg hidden-xs" @click="toggleLanguage">
+        <v-btn variant="text" color="primary" class="font-weight-black px-1 px-sm-2 text-subtitle-2 rounded-lg d-none d-sm-inline-flex" @click="toggleLanguage">
           🌐 {{ localeStore.currentLocale === 'ar' ? 'EN' : 'عربي' }}
         </v-btn>
-        <v-btn icon size="small" color="primary" class="d-none d-xs-flex" @click="toggleLanguage" aria-label="Toggle Language">
+        <v-btn icon size="small" color="primary" class="d-flex d-sm-none" @click="toggleLanguage" aria-label="Toggle Language">
           <v-icon>mdi-translate</v-icon>
         </v-btn>
 
-        <!-- Theme Switcher -->
-        <v-btn icon color="primary" size="small" @click="toggleTheme" aria-label="Toggle Theme">
+        <!-- Theme Switcher (hidden on the smallest phone widths to keep the
+             header on one row; shown on sm and up) -->
+        <v-btn icon color="primary" size="small" class="d-none d-sm-flex" @click="toggleTheme" aria-label="Toggle Theme">
           <v-icon size="small">
             {{ theme.global.name.value === 'kalmeraDark' ? 'mdi-white-balance-sunny' : 'mdi-weather-night' }}
           </v-icon>
@@ -116,8 +117,8 @@
           </v-btn>
         </template>
         <template v-else>
-          <v-btn variant="outlined" color="primary" size="small" class="hidden-xs rounded-lg" to="/login">{{ localeStore.t('login') }}</v-btn>
-          <v-btn variant="flat" color="secondary" size="small" class="hidden-xs rounded-lg" to="/register">{{ localeStore.t('register') }}</v-btn>
+          <v-btn variant="outlined" color="primary" size="small" class="d-none d-sm-inline-flex rounded-lg" to="/login">{{ localeStore.t('login') }}</v-btn>
+          <v-btn variant="flat" color="secondary" size="small" class="d-none d-sm-inline-flex rounded-lg" to="/register">{{ localeStore.t('register') }}</v-btn>
         </template>
       </div>
     </v-app-bar>

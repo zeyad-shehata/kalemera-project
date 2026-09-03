@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <v-container class="pa-0">
     <div class="d-flex align-center justify-space-between mb-6">
       <div>
@@ -106,81 +106,97 @@
           </div>
 
           <template v-if="group.orders.length > 0">
-            <v-list class="bg-transparent pa-0 border-bronze rounded-lg overflow-hidden">
-              <v-list-item
+            <div class="pa-2 pa-sm-3 border-bronze rounded-lg bg-surface-variant d-flex flex-column ga-3">
+              <div
                 v-for="order in group.orders"
                 :key="order.id"
-                lines="two"
-                class="border-bottom bg-surface-variant"
+                class="pa-3 pa-sm-4 rounded-lg bg-surface border-bronze elevation-2"
               >
-                <template v-slot:prepend>
-                  <v-avatar color="primary" variant="tonal" size="38" class="mr-2">
-                    <span class="font-weight-black text-primary">#{{ order.id }}</span>
-                  </v-avatar>
-                </template>
-
-                <v-list-item-title class="font-weight-bold d-flex align-center flex-wrap ga-2">
-                  <span class="text-copper-muted">{{ order.user?.full_name || 'N/A' }}</span>
-                  <v-chip :color="getStatusColor(order.status)" size="x-small" class="font-weight-bold text-uppercase">
+                <!-- Row 1: Order ID, Customer Name, Status Chip -->
+                <div class="d-flex align-center justify-space-between flex-wrap ga-2 mb-2">
+                  <div class="d-flex align-center ga-2 flex-wrap">
+                    <v-avatar color="primary" variant="tonal" size="32">
+                      <span class="font-weight-black text-primary text-caption">#{{ order.id }}</span>
+                    </v-avatar>
+                    <span class="font-weight-bold text-subtitle-2 text-copper-muted">
+                      {{ order.user?.full_name || 'N/A' }}
+                    </span>
+                  </div>
+                  <v-chip :color="getStatusColor(order.status)" size="small" class="font-weight-bold text-uppercase">
                     {{ order.status }}
                   </v-chip>
-                  <span class="text-caption text-grey">{{ order.user?.phone || '' }}</span>
-                </v-list-item-title>
+                </div>
 
-                <v-list-item-subtitle class="text-copper-muted d-flex align-center flex-wrap ga-3">
-                  <span>{{ formatDate(order.created_at) }}</span>
-                  <span class="font-weight-bold text-primary">{{ order.total_price.toFixed(2) }} EGP</span>
-                  <span v-if="order.delivery_address" class="text-caption">{{ order.delivery_address }}</span>
-                </v-list-item-subtitle>
+                <!-- Row 2: Standalone, dedicated Phone Number block -->
+                <div v-if="order.user?.phone" class="d-flex align-center ga-2 mb-2 text-caption">
+                  <v-icon size="small" color="primary">mdi-phone</v-icon>
+                  <span class="font-weight-bold text-primary" dir="ltr">{{ order.user.phone }}</span>
+                </div>
 
-                <template v-slot:append>
-                  <div class="d-flex align-center ga-1 flex-wrap">
-                    <v-menu v-if="group.key !== 'delivered'">
-                      <template v-slot:activator="{ props }">
-                        <v-btn
-                          color="primary"
-                          variant="tonal"
-                          size="x-small"
-                          class="font-weight-bold"
-                          v-bind="props"
-                        >
-                          {{ t('changeStatus') }}
-                        </v-btn>
-                      </template>
-                      <v-list>
-                        <v-list-item
-                          v-for="statusOpt in statusOptionsFor(order.status)"
-                          :key="statusOpt"
-                          @click="updateStatus(order.id, statusOpt)"
-                        >
-                          <v-list-item-title class="font-weight-bold">{{ statusOpt }}</v-list-item-title>
-                        </v-list-item>
-                      </v-list>
-                    </v-menu>
-                    <v-btn
-                      color="secondary"
-                      variant="flat"
-                      size="x-small"
-                      class="font-weight-bold"
-                      @click="viewOrderDetails(order)"
-                    >
-                      {{ t('details') }}
-                    </v-btn>
-                    <v-btn
-                      v-if="group.key !== 'delivered'"
-                      color="error"
-                      variant="outlined"
-                      size="x-small"
-                      class="font-weight-bold"
-                      prepend-icon="mdi-delete"
-                      @click="openDeleteDialog(order)"
-                    >
-                      {{ t('delete') }}
-                    </v-btn>
+                <!-- Row 3: Meta info (Date, Address, Price) -->
+                <div class="d-flex align-center justify-space-between flex-wrap ga-2 text-caption text-copper-muted mb-3">
+                  <div class="d-flex align-center ga-3 flex-wrap">
+                    <span>
+                      <v-icon size="x-small" class="mr-1">mdi-clock-outline</v-icon>
+                      {{ formatDate(order.created_at) }}
+                    </span>
+                    <span v-if="order.delivery_address">
+                      <v-icon size="x-small" class="mr-1">mdi-map-marker</v-icon>
+                      {{ order.delivery_address }}
+                    </span>
                   </div>
-                </template>
-              </v-list-item>
-            </v-list>
+                  <div class="font-weight-black text-subtitle-2 text-primary">
+                    {{ order.total_price.toFixed(2) }} EGP
+                  </div>
+                </div>
+
+                <!-- Row 4: Action Buttons (Responsive flex row) -->
+                <div class="d-flex align-center justify-end ga-2 flex-wrap pt-2 border-top">
+                  <v-menu v-if="group.key !== 'delivered'">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        color="primary"
+                        variant="tonal"
+                        size="small"
+                        class="font-weight-bold rounded-lg"
+                        v-bind="props"
+                      >
+                        {{ t('changeStatus') }}
+                      </v-btn>
+                    </template>
+                    <v-list>
+                      <v-list-item
+                        v-for="statusOpt in statusOptionsFor(order.status)"
+                        :key="statusOpt"
+                        @click="updateStatus(order.id, statusOpt)"
+                      >
+                        <v-list-item-title class="font-weight-bold">{{ statusOpt }}</v-list-item-title>
+                      </v-list-item>
+                    </v-list>
+                  </v-menu>
+                  <v-btn
+                    color="secondary"
+                    variant="flat"
+                    size="small"
+                    class="font-weight-bold rounded-lg"
+                    @click="viewOrderDetails(order)"
+                  >
+                    {{ t('details') }}
+                  </v-btn>
+                  <v-btn
+                    v-if="group.key !== 'delivered'"
+                    color="error"
+                    variant="outlined"
+                    size="small"
+                    class="font-weight-bold rounded-lg"
+                    prepend-icon="mdi-delete"
+                    @click="openDeleteDialog(order)"
+                  >
+                    {{ t('delete') }}
+                  </v-btn>
+                </div>
+              </div>
+            </div>
           </template>
           <div v-else class="text-center text-copper-muted pa-4 bg-surface-variant rounded-lg border-bronze">
             {{ t('noOrdersAdmin') }}
@@ -291,8 +307,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useAdminStore } from '../../stores/admin'
+import { useNotificationStore } from '../../stores/notifications'
 import { useLocaleStore } from '../../stores/locale'
 import { Bar } from 'vue-chartjs'
 import api from '../../api'
@@ -431,13 +448,32 @@ const viewOrderDetails = (order: Order) => {
   detailsDialog.value = true
 }
 
+const notificationStore = useNotificationStore()
+let pollingTimer: number | null = null
+
 const loadData = () => {
   adminStore.fetchDashboardSummary()
   loadWorkflow()
 }
 
+// Watch incoming notifications to refresh workflow and summary live without manual reload
+watch(
+  () => notificationStore.notifications.length,
+  () => {
+    loadData()
+  }
+)
+
 onMounted(() => {
   loadData()
+  pollingTimer = window.setInterval(loadData, 10000)
+})
+
+onUnmounted(() => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+    pollingTimer = null
+  }
 })
 
 const formatDate = (dateStr: string) => {
