@@ -7,15 +7,15 @@
           <v-col cols="12" md="8">
             <!-- Central Shield Logo -->
             <v-img
-              src="/logo.jpg"
-              alt="Kalmera Badge"
-              max-width="140"
+              src="/logo.webp"
+              alt="Calmera Logo"
+              max-width="160"
               class="mx-auto mb-4 hero-logo-badge"
               contain
             ></v-img>
             
             <h1 class="text-h4 text-sm-h2 font-weight-black text-bronze-gradient mb-2">
-              {{ localeStore.currentLocale === 'ar' ? 'كال ميرا' : 'KALMERA' }}
+              {{ localeStore.currentLocale === 'ar' ? 'كالميرا' : 'CALMERA' }}
             </h1>
             <p class="text-subtitle-1 text-sm-h6 text-copper-muted font-weight-medium mb-6">
               {{ localeStore.currentLocale === 'ar' ? 'مطعم | ماركت' : 'RESTAURANT & MARKET' }}

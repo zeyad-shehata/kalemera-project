@@ -88,23 +88,76 @@
                   <div class="text-body-2">{{ formatDate(order.updated_at) }}</div>
                 </v-col>
                 <v-col cols="12" sm="6">
-                  <div class="text-body-2" v-if="order.delivery_address">
+                  <div class="text-body-2 mb-1">
+                    <span class="text-caption text-grey">{{ t('fulfillmentMethod') }}:</span>
+                    <v-chip size="x-small" color="primary" class="font-weight-bold ml-1">
+                      {{ order.fulfillment_type === 'PICKUP' || order.delivery_address === 'استلام من الصالة' ? t('pickupFromHall') : t('delivery') }}
+                    </v-chip>
+                  </div>
+                  <div class="text-body-2" v-if="order.delivery_address && order.fulfillment_type !== 'PICKUP' && order.delivery_address !== 'استلام من الصالة'">
                     <span class="text-caption text-grey">{{ t('deliveryAddress') }}:</span>
                     <span class="font-weight-bold"> {{ order.delivery_address }}</span>
                   </div>
-                  <div class="text-body-2" v-if="order.delivery_fee">
+                  <div class="text-body-2 mt-2 px-3 py-2 bg-white border rounded" v-if="order.notes">
+                    <span class="text-caption text-grey">{{ t('orderNotes') }}:</span>
+                    <div class="font-weight-bold text-primary">{{ order.notes }}</div>
+                  </div>
+                  <div class="text-body-2 mt-2">
                     <span class="text-caption text-grey">{{ t('deliveryFee') }}:</span>
-                    <span class="font-weight-bold"> {{ order.delivery_fee.toFixed(2) }} EGP</span>
+                    <span class="font-weight-bold" v-if="order.delivery_fee"> {{ order.delivery_fee.toFixed(2) }} EGP</span>
+                    <span class="font-weight-bold text-success" v-else> {{ t('free') }} (0.00 EGP)</span>
                   </div>
                   <div class="text-body-2">
                     <span class="text-caption text-grey">{{ t('subtotal') }}:</span>
                     <span class="font-weight-bold"> {{ (order.total_price - (order.delivery_fee || 0)).toFixed(2) }} EGP</span>
                   </div>
                 </v-col>
-                <v-col cols="12" sm="6" class="text-sm-right" v-if="order.status === 'PENDING'">
+                <v-col cols="12" sm="6" class="text-sm-right" v-if="canCancel(order)">
                   <v-btn color="error" variant="outlined" size="small" class="font-weight-bold" @click="cancelOrder(order.id)">
                     {{ t('cancelOrder') }}
                   </v-btn>
+                </v-col>
+              </v-row>
+
+              <!-- Review / Rating -->
+              <v-row v-if="order.status === 'DELIVERED'" class="mt-2">
+                <v-col cols="12">
+                  <v-divider class="mb-4"></v-divider>
+                  <div v-if="order.review">
+                    <span class="text-caption text-grey">{{ t('rateOrder') }}:</span>
+                    <v-rating :model-value="order.review.rating" readonly density="compact" size="small" color="amber"></v-rating>
+                    <div v-if="order.review.comment" class="text-body-2 font-italic">"{{ order.review.comment }}"</div>
+                  </div>
+                  <div v-else>
+                    <div class="text-subtitle-2 font-weight-bold mb-2">{{ t('rateOrder') }}</div>
+                    <v-rating
+                      v-model="reviewDrafts[order.id].rating"
+                      density="compact"
+                      color="amber"
+                      hover
+                    ></v-rating>
+                    <v-textarea
+                      v-model="reviewDrafts[order.id].comment"
+                      :label="t('yourReview')"
+                      rows="2"
+                      maxlength="500"
+                      density="compact"
+                      variant="outlined"
+                      class="mt-2"
+                    ></v-textarea>
+                    <v-alert v-if="reviewDrafts[order.id].error" type="error" variant="tonal" density="compact" class="mb-2">
+                      {{ reviewDrafts[order.id].error }}
+                    </v-alert>
+                    <v-btn
+                      color="primary"
+                      size="small"
+                      class="font-weight-bold"
+                      :loading="reviewDrafts[order.id].submitting"
+                      @click="submitReview(order)"
+                    >
+                      {{ t('submitReview') }}
+                    </v-btn>
+                  </div>
                 </v-col>
               </v-row>
             </v-expansion-panel-text>
@@ -116,9 +169,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, reactive, watch } from 'vue'
 import { useOrderStore } from '../stores/orders'
 import { useLocaleStore } from '../stores/locale'
+import type { Order } from '../stores/orders'
+import api from '../api'
 
 import { formatAppDate } from '../utils/date'
 
@@ -126,9 +181,49 @@ const orderStore = useOrderStore()
 const localeStore = useLocaleStore()
 const { t } = localeStore
 
+interface ReviewDraft {
+  rating: number
+  comment: string
+  submitting: boolean
+  error: string
+}
+
+const reviewDrafts = reactive<Record<number, ReviewDraft>>({})
+
+const ensureReviewDrafts = (orders: Order[]) => {
+  for (const order of orders) {
+    if (!reviewDrafts[order.id]) {
+      reviewDrafts[order.id] = { rating: 0, comment: '', submitting: false, error: '' }
+    }
+  }
+}
+
+watch(() => orderStore.orders, (orders) => ensureReviewDrafts(orders), { immediate: true })
+
 onMounted(() => {
   orderStore.fetchMyOrders()
 })
+
+const submitReview = async (order: Order) => {
+  const draft = reviewDrafts[order.id]
+  if (!draft.rating || draft.rating < 1) {
+    draft.error = t('selectRatingFirst')
+    return
+  }
+  draft.error = ''
+  draft.submitting = true
+  try {
+    const res = await api.post(`/api/reviews/orders/${order.id}`, {
+      rating: draft.rating,
+      comment: draft.comment || null,
+    })
+    order.review = res.data
+  } catch (e: any) {
+    draft.error = e.response?.data?.detail || t('failSubmitReview')
+  } finally {
+    draft.submitting = false
+  }
+}
 
 const formatDate = (dateStr: string) => {
   return formatAppDate(dateStr, localeStore.currentLocale)
@@ -149,6 +244,17 @@ const getStatusColor = (status: string) => {
     default:
       return 'grey'
   }
+}
+
+const canCancel = (order: any) => {
+  if (order.status !== 'PENDING') return false
+  let dateStr = order.created_at
+  if (!dateStr.endsWith('Z') && !dateStr.includes('+')) {
+    dateStr += 'Z'
+  }
+  const orderTime = new Date(dateStr).getTime()
+  const now = new Date().getTime()
+  return (now - orderTime) <= 600000 // 10 minutes
 }
 
 const cancelOrder = async (orderId: number) => {

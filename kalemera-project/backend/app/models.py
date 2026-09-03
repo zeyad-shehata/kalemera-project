@@ -9,6 +9,9 @@ from sqlalchemy import (
     Integer,
     Boolean,
     Enum as SQLEnum,
+    UniqueConstraint,
+    Index,
+    CheckConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,6 +29,11 @@ class OrderStatus(str, enum.Enum):
     SHIPPED = "SHIPPED"
     DELIVERED = "DELIVERED"
     CANCELLED = "CANCELLED"
+
+
+class FulfillmentType(str, enum.Enum):
+    DELIVERY = "DELIVERY"
+    PICKUP = "PICKUP"
 
 
 class User(Base):
@@ -104,6 +112,10 @@ class ProductVariant(Base):
 
 class Order(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        UniqueConstraint("user_id", "idempotency_key", name="uq_orders_user_idempotency_key"),
+        Index("ix_orders_status_created_at_id", "status", "created_at", "id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -113,9 +125,17 @@ class Order(Base):
         nullable=False,
         index=True
     )
+    fulfillment_type: Mapped[FulfillmentType] = mapped_column(
+        SQLEnum(FulfillmentType, name="fulfillmenttype_enum"),
+        default=FulfillmentType.DELIVERY,
+        nullable=False,
+        index=True
+    )
     total_price: Mapped[float] = mapped_column(Numeric(10, 2), default=0.00, nullable=False)
     delivery_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     delivery_fee: Mapped[float] = mapped_column(Numeric(10, 2), default=0.00, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    idempotency_key: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False, index=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -127,6 +147,9 @@ class Order(Base):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="orders")
     items: Mapped[List["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    review: Mapped[Optional["Review"]] = relationship(
+        "Review", back_populates="order", uselist=False, cascade="all, delete-orphan"
+    )
 
 class OrderItem(Base):
     __tablename__ = "order_items"
@@ -163,3 +186,31 @@ class Notification(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="notifications")
+
+
+class Review(Base):
+    """One review per DELIVERED order, written by its owner. Only rating,
+    comment, and created_at are ever exposed publicly — phone, address, and
+    order notes are never included in a Review or its API responses."""
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("order_id", name="uq_reviews_order_id"),
+        CheckConstraint("rating >= 1 AND rating <= 5", name="ck_reviews_rating_range"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    order_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False, index=True
+    )
+
+    # Relationships
+    order: Mapped["Order"] = relationship("Order", back_populates="review")
+    user: Mapped["User"] = relationship("User")

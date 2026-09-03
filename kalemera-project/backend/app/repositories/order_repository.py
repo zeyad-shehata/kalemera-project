@@ -4,18 +4,30 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy import func
 
-from app.models import Order, OrderItem, Product, OrderStatus
+from app.models import Order, OrderItem, Product, OrderStatus, FulfillmentType
 
 class OrderRepository:
     async def create(
-        self, db: AsyncSession, user_id: int, total_price: float, items: List[OrderItem], delivery_address: Optional[str] = None, delivery_fee: float = 0.0
+        self,
+        db: AsyncSession,
+        user_id: int,
+        total_price: float,
+        items: List[OrderItem],
+        delivery_address: Optional[str] = None,
+        delivery_fee: float = 0.0,
+        fulfillment_type: FulfillmentType = FulfillmentType.DELIVERY,
+        notes: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Order:
         order = Order(
             user_id=user_id,
             status=OrderStatus.PENDING,
+            fulfillment_type=fulfillment_type,
             total_price=total_price,
             delivery_address=delivery_address,
             delivery_fee=delivery_fee,
+            notes=notes,
+            idempotency_key=idempotency_key,
             items=items,
         )
         db.add(order)
@@ -25,7 +37,7 @@ class OrderRepository:
     async def list_orders(
         self, db: AsyncSession, user_id: Optional[int] = None, is_admin: bool = False
     ) -> List[Order]:
-        query = select(Order).options(selectinload(Order.items), selectinload(Order.user))
+        query = select(Order).options(selectinload(Order.items), selectinload(Order.user), selectinload(Order.review))
         if not is_admin and user_id is not None:
             query = query.where(Order.user_id == user_id)
         # FIFO ordering: oldest orders first (created_at ASC), secondary sort by id ASC
@@ -40,7 +52,7 @@ class OrderRepository:
         """Efficient server-side filtering of orders by status (FIFO within each status)."""
         query = (
             select(Order)
-            .options(selectinload(Order.items), selectinload(Order.user))
+            .options(selectinload(Order.items), selectinload(Order.user), selectinload(Order.review))
             .where(Order.status == status)
             .order_by(Order.created_at.asc(), Order.id.asc())
         )
@@ -67,14 +79,18 @@ class OrderRepository:
         (FIFO). The delivered history is paginated to avoid loading all
         historical rows — this is important on Neon to keep IO low.
         """
-        new_orders = await self.list_orders_by_status(db, OrderStatus.PENDING)
-        preparing_orders = await self.list_orders_by_status(db, OrderStatus.PROCESSING)
-        ready_orders = await self.list_orders_by_status(db, OrderStatus.SHIPPED)
+        # Active buckets are normally small (a handful of in-flight orders), but
+        # bound them defensively so a stuck/runaway status bucket can't force an
+        # unbounded table scan/result set.
+        ACTIVE_BUCKET_LIMIT = 500
+        new_orders = await self.list_orders_by_status(db, OrderStatus.PENDING, limit=ACTIVE_BUCKET_LIMIT)
+        preparing_orders = await self.list_orders_by_status(db, OrderStatus.PROCESSING, limit=ACTIVE_BUCKET_LIMIT)
+        ready_orders = await self.list_orders_by_status(db, OrderStatus.SHIPPED, limit=ACTIVE_BUCKET_LIMIT)
         delivered_orders = await self.list_orders_by_status(
             db, OrderStatus.DELIVERED, limit=delivered_limit, offset=delivered_offset
         )
         delivered_total = await self.count_orders_by_status(db, OrderStatus.DELIVERED)
-        cancelled_orders = await self.list_orders_by_status(db, OrderStatus.CANCELLED)
+        cancelled_orders = await self.list_orders_by_status(db, OrderStatus.CANCELLED, limit=ACTIVE_BUCKET_LIMIT)
         return {
             "new": new_orders,
             "preparing": preparing_orders,
@@ -88,7 +104,17 @@ class OrderRepository:
         result = await db.execute(
             select(Order)
             .where(Order.id == order_id)
-            .options(selectinload(Order.items), selectinload(Order.user))
+            .options(selectinload(Order.items), selectinload(Order.user), selectinload(Order.review))
+        )
+        return result.scalars().first()
+
+    async def get_by_user_and_idempotency_key(
+        self, db: AsyncSession, user_id: int, idempotency_key: str
+    ) -> Optional[Order]:
+        result = await db.execute(
+            select(Order)
+            .where(Order.user_id == user_id, Order.idempotency_key == idempotency_key)
+            .options(selectinload(Order.items), selectinload(Order.user), selectinload(Order.review))
         )
         return result.scalars().first()
 

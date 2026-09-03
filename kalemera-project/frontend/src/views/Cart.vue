@@ -34,6 +34,7 @@
                   <div class="d-flex align-center">
                     <v-img
                       :src="resolveImageUrl(item.product.image_path, 'https://placehold.co/100x75?text=No+Image')"
+                      :alt="localeStore.currentLocale === 'en' && item.product.name_en ? item.product.name_en : item.product.name"
                       width="70"
                       height="50"
                       cover

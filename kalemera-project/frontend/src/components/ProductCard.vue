@@ -4,6 +4,7 @@
     <div class="position-relative">
       <v-img
         :src="productImageSrc"
+        :alt="displayName"
         height="210"
         cover
         class="bg-surface-variant"

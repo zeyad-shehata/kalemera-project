@@ -133,14 +133,18 @@
                   <span class="font-weight-bold text-primary" dir="ltr">{{ order.user.phone }}</span>
                 </div>
 
-                <!-- Row 3: Meta info (Date, Address, Price) -->
+                <!-- Row 3: Meta info (Date, Address/Fulfillment, Price) -->
                 <div class="d-flex align-center justify-space-between flex-wrap ga-2 text-caption text-copper-muted mb-3">
                   <div class="d-flex align-center ga-3 flex-wrap">
                     <span>
                       <v-icon size="x-small" class="mr-1">mdi-clock-outline</v-icon>
                       {{ formatDate(order.created_at) }}
                     </span>
-                    <span v-if="order.delivery_address">
+                    <span v-if="order.fulfillment_type === 'PICKUP' || order.delivery_address === 'استلام من الصالة'" class="text-primary font-weight-bold">
+                      <v-icon size="x-small" class="mr-1" color="primary">mdi-storefront-outline</v-icon>
+                      {{ t('pickupFromHall') }} (مجاني)
+                    </span>
+                    <span v-else-if="order.delivery_address">
                       <v-icon size="x-small" class="mr-1">mdi-map-marker</v-icon>
                       {{ order.delivery_address }}
                     </span>
@@ -228,11 +232,21 @@
             {{ t('orderDetailTitle') }} #{{ selectedOrder?.id }}
           </v-card-title>
           <v-card-text>
-            <div class="mb-4 text-copper-muted">
+            <div class="mb-2 text-copper-muted">
               <strong>{{ t('customerLabel') }}:</strong> {{ selectedOrder?.user?.full_name }} ({{ selectedOrder?.user?.phone }})
             </div>
-            <div v-if="selectedOrder?.delivery_address" class="mb-4 text-copper-muted">
+            <div class="mb-2 text-copper-muted">
+              <strong>{{ t('fulfillmentMethod') }}:</strong>
+              <span class="font-weight-bold text-primary ml-1">
+                {{ selectedOrder?.fulfillment_type === 'PICKUP' || selectedOrder?.delivery_address === 'استلام من الصالة' ? t('pickupFromHall') : t('delivery') }}
+              </span>
+            </div>
+            <div v-if="selectedOrder?.delivery_address && selectedOrder?.fulfillment_type !== 'PICKUP' && selectedOrder?.delivery_address !== 'استلام من الصالة'" class="mb-2 text-copper-muted">
               <strong>{{ t('deliveryAddress') }}:</strong> {{ selectedOrder.delivery_address }}
+            </div>
+            <div v-if="selectedOrder?.notes" class="mb-4 text-copper-muted bg-surface-variant pa-3 rounded-lg border-bronze">
+              <strong><v-icon size="small" class="mr-1" color="primary">mdi-note-text</v-icon> {{ t('orderNotes') }}:</strong>
+              <div class="mt-1 font-weight-medium">{{ selectedOrder.notes }}</div>
             </div>
             <v-divider class="mb-4 border-bronze"></v-divider>
             <div class="font-weight-bold text-subtitle-1 mb-2 text-primary">{{ t('itemsLabel') }}:</div>
@@ -264,6 +278,10 @@
             <div v-if="selectedOrder?.delivery_fee" class="d-flex justify-space-between text-subtitle-1 text-copper-muted mt-1">
               <span>{{ t('deliveryFee') }}</span>
               <span>{{ selectedOrder.delivery_fee.toFixed(2) }} EGP</span>
+            </div>
+            <div v-else-if="selectedOrder?.fulfillment_type === 'PICKUP' || selectedOrder?.delivery_address === 'استلام من الصالة'" class="d-flex justify-space-between text-subtitle-1 text-copper-muted mt-1">
+              <span>{{ t('deliveryFee') }}</span>
+              <span class="text-success font-weight-bold">0.00 EGP (مجاني)</span>
             </div>
             <div class="d-flex justify-space-between text-h6 font-weight-black text-primary mt-2">
               <span>{{ t('orderTotal') }}</span>
@@ -450,10 +468,16 @@ const viewOrderDetails = (order: Order) => {
 
 const notificationStore = useNotificationStore()
 let pollingTimer: number | null = null
+let loadDataInFlight = false
 
 const loadData = () => {
-  adminStore.fetchDashboardSummary()
-  loadWorkflow()
+  // Guard against overlapping calls: the notification-triggered watch and the
+  // background polling timer can both fire loadData() around the same moment.
+  if (loadDataInFlight) return
+  loadDataInFlight = true
+  Promise.allSettled([adminStore.fetchDashboardSummary(), loadWorkflow()]).finally(() => {
+    loadDataInFlight = false
+  })
 }
 
 // Watch incoming notifications to refresh workflow and summary live without manual reload

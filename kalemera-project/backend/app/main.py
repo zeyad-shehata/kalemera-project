@@ -7,8 +7,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
-from app.config import settings
-from app.routers import auth, products, categories, orders, notifications, reports, storage
+from app.config import settings, assert_persistent_storage_configured, assert_production_secret_configured
+from app.routers import auth, products, categories, orders, notifications, reports, storage, reviews
 from app.services.business_hours import (
     get_settings_timezone,
     is_store_closed,
@@ -22,6 +22,10 @@ logger = logging.getLogger("kalmera.api")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Fail fast rather than silently losing uploaded images on ephemeral storage.
+    assert_persistent_storage_configured()
+    # Fail fast rather than running production with the placeholder dev secret.
+    assert_production_secret_configured()
     # Ensure database schema exists on application boot
     try:
         from app.database import ensure_tables_created
@@ -100,6 +104,7 @@ app.include_router(orders.router)
 app.include_router(notifications.router)
 app.include_router(reports.router)
 app.include_router(storage.router)
+app.include_router(reviews.router)
 
 @app.get("/", tags=["root"])
 @app.get("/api", tags=["root"])

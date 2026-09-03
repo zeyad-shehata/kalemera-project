@@ -29,13 +29,7 @@ class StorageService:
 
     def _has_cloud_storage(self) -> bool:
         """Returns True if S3/R2/Cloud storage configuration is present."""
-        return bool(
-            settings.S3_BUCKET_NAME
-            and (
-                (settings.S3_ACCESS_KEY_ID and settings.S3_SECRET_ACCESS_KEY)
-                or settings.S3_PUBLIC_URL
-            )
-        )
+        return settings.has_cloud_storage()
 
     async def _upload_to_cloud(self, key: str, data: bytes, content_type: str = "image/webp") -> str:
         """Uploads file bytes to configured S3/R2/Cloud bucket."""
@@ -128,7 +122,13 @@ class StorageService:
         return main_url, thumb_url, processed
 
     def resolve_physical_path(self, relative_url: str) -> Optional[Path]:
-        """Resolves a web relative URL into a verified absolute filesystem Path."""
+        """Resolves a web relative URL into a verified absolute filesystem Path.
+
+        Rejects any path that escapes its intended base directory (e.g. via
+        `..` segments) so this cannot be turned into an arbitrary file
+        read/delete primitive even if a less-trusted source ever supplies
+        `relative_url`.
+        """
         if not relative_url:
             return None
 
@@ -136,12 +136,20 @@ class StorageService:
         # If url is e.g. "storage/products/2026/08/prod_xxx.webp"
         if clean_url.startswith("storage/"):
             rel_part = clean_url.replace("storage/", "", 1)
-            target = self.storage_dir / rel_part
+            base_dir = self.storage_dir
         elif clean_url.startswith("uploads/"):
             rel_part = clean_url.replace("uploads/", "", 1)
-            target = self.uploads_dir / rel_part
+            base_dir = self.uploads_dir
         else:
-            target = BACKEND_DIR / clean_url
+            rel_part = clean_url
+            base_dir = BACKEND_DIR
+
+        try:
+            base_resolved = base_dir.resolve()
+            target = (base_dir / rel_part).resolve()
+            target.relative_to(base_resolved)
+        except (ValueError, OSError):
+            return None
 
         if target.exists() and target.is_file():
             return target

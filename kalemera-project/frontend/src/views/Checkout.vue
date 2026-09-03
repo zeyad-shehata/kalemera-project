@@ -17,6 +17,7 @@
               <template v-slot:prepend>
                 <v-img
                   :src="resolveImageUrl(item.product.image_path, 'https://placehold.co/100x75?text=No+Image')"
+                  :alt="localeStore.currentLocale === 'en' && item.product.name_en ? item.product.name_en : item.product.name"
                   width="60"
                   height="45"
                   cover
@@ -41,7 +42,97 @@
           </v-list>
         </v-card>
 
-        <!-- Billing Info -->
+        <!-- Fulfillment Method Section -->
+        <v-card class="elevation-3 rounded-lg pa-6 mb-6">
+          <h2 class="text-h6 font-weight-bold mb-4 d-flex align-center ga-2">
+            <v-icon color="primary">mdi-package-variant-closed</v-icon>
+            {{ t('fulfillmentMethod') }}
+          </h2>
+
+          <v-btn-toggle
+            v-model="fulfillmentType"
+            mandatory
+            color="primary"
+            variant="outlined"
+            divided
+            class="d-flex w-100 rounded-lg overflow-hidden border-bronze mb-4"
+          >
+            <v-btn
+              value="DELIVERY"
+              class="flex-1-1 font-weight-bold py-3"
+              :class="{ 'bg-primary text-white': fulfillmentType === 'DELIVERY' }"
+            >
+              <v-icon start>mdi-moped</v-icon>
+              {{ t('delivery') }}
+            </v-btn>
+            <v-btn
+              value="PICKUP"
+              class="flex-1-1 font-weight-bold py-3"
+              :class="{ 'bg-primary text-white': fulfillmentType === 'PICKUP' }"
+            >
+              <v-icon start>mdi-storefront-outline</v-icon>
+              {{ t('pickupFromHall') }}
+            </v-btn>
+          </v-btn-toggle>
+
+          <!-- Delivery Address Selector (Shown only when DELIVERY is chosen) -->
+          <div v-if="fulfillmentType === 'DELIVERY'">
+            <v-select
+              :label="t('deliveryAddress')"
+              v-model="deliveryAddress"
+              :items="deliveryOptions"
+              item-title="label"
+              item-value="value"
+              variant="outlined"
+              density="comfortable"
+              color="primary"
+              prepend-inner-icon="mdi-map-marker-radius"
+              class="bg-surface rounded-lg mb-2"
+              hide-details
+              :error="showAddressError"
+              :error-messages="addressErrorText"
+            ></v-select>
+
+            <v-chip v-if="deliveryFee" class="font-weight-bold mt-2" color="info" label>
+              <v-icon start>mdi-truck-delivery</v-icon>
+              {{ t('deliveryFee') }}: {{ deliveryFee.toFixed(2) }} EGP
+            </v-chip>
+            <v-chip v-else class="font-weight-bold mt-2" color="grey" label>
+              <v-icon start>mdi-truck-delivery</v-icon>
+              {{ t('selectAddressForFee') }}
+            </v-chip>
+          </div>
+
+          <!-- Pickup Notice (Shown only when PICKUP is chosen) -->
+          <div v-else class="pa-4 bg-surface-variant rounded-lg border-bronze">
+            <div class="d-flex align-center ga-2 text-primary font-weight-bold mb-1">
+              <v-icon color="primary">mdi-check-circle-outline</v-icon>
+              <span>{{ t('pickupFree') }}</span>
+            </div>
+            <p class="text-caption text-copper-muted mb-0">
+              {{ t('pickupNotice') }}
+            </p>
+          </div>
+        </v-card>
+
+        <!-- Order Notes -->
+        <v-card class="elevation-3 rounded-lg pa-6 mb-6">
+          <h2 class="text-h6 font-weight-bold mb-4 d-flex align-center ga-2">
+            <v-icon color="primary">mdi-note-edit-outline</v-icon>
+            {{ t('orderNotes') }}
+          </h2>
+          <v-textarea
+            v-model="orderNotes"
+            :label="t('orderNotesHint')"
+            variant="outlined"
+            density="comfortable"
+            rows="2"
+            hide-details
+            class="bg-surface rounded-lg"
+          ></v-textarea>
+        </v-card>
+
+        <!-- Customer Info -->
         <v-card class="elevation-3 rounded-lg pa-6">
           <h2 class="text-h6 font-weight-bold mb-4">{{ t('billingDetails') }}</h2>
           <v-row>
@@ -50,33 +141,6 @@
             </v-col>
             <v-col cols="12" sm="6">
               <v-text-field :label="t('phoneNumber')" variant="outlined" density="comfortable" :value="authStore.currentUser?.phone || ''" readonly dir="ltr" prepend-inner-icon="mdi-phone"></v-text-field>
-            </v-col>
-            <v-col cols="12">
-              <v-select
-                :label="t('deliveryAddress')"
-                v-model="deliveryAddress"
-                :items="deliveryOptions"
-                item-title="label"
-                item-value="value"
-                variant="outlined"
-                density="comfortable"
-                color="primary"
-                prepend-inner-icon="mdi-map-marker-radius"
-                class="bg-surface rounded-lg"
-                hide-details
-                :error="showAddressError"
-                :error-messages="addressErrorText"
-              ></v-select>
-            </v-col>
-            <v-col cols="12">
-              <v-chip v-if="deliveryFee" class="font-weight-bold" color="info" label>
-                <v-icon start>mdi-truck-delivery</v-icon>
-                {{ t('deliveryFee') }}: {{ deliveryFee.toFixed(2) }} EGP
-              </v-chip>
-              <v-chip v-else class="font-weight-bold" color="grey" label>
-                <v-icon start>mdi-truck-delivery</v-icon>
-                {{ t('selectAddressForFee') }}
-              </v-chip>
             </v-col>
           </v-row>
         </v-card>
@@ -88,14 +152,22 @@
           <h2 class="text-h6 font-weight-bold mb-4">{{ t('paymentSummary') }}</h2>
 
           <div class="d-flex justify-space-between mb-3">
+            <span>{{ t('fulfillmentMethod') }}:</span>
+            <span class="font-weight-bold text-primary">
+              {{ fulfillmentType === 'PICKUP' ? t('pickupFromHall') : t('delivery') }}
+            </span>
+          </div>
+
+          <div class="d-flex justify-space-between mb-3">
             <span>{{ t('subtotal') }}:</span>
             <span class="font-weight-bold">{{ cartStore.subtotal.toFixed(2) }} EGP</span>
           </div>
 
           <div class="d-flex justify-space-between mb-3">
             <span>{{ t('deliveryFee') }}:</span>
-            <span v-if="deliveryFee" class="font-weight-bold text-secondary">{{ deliveryFee.toFixed(2) }} EGP</span>
-            <span v-else class="font-weight-bold text-grey">{{ t('free') }}</span>
+            <span v-if="fulfillmentType === 'PICKUP'" class="font-weight-bold text-success">{{ t('free') }} (0.00 EGP)</span>
+            <span v-else-if="deliveryFee" class="font-weight-bold text-secondary">{{ deliveryFee.toFixed(2) }} EGP</span>
+            <span v-else class="font-weight-bold text-grey">{{ t('selectAddressForFee') }}</span>
           </div>
 
           <v-divider class="my-4"></v-divider>
@@ -122,7 +194,7 @@
             block
             class="font-weight-bold text-uppercase rounded-lg"
             :loading="orderStore.loading"
-            :disabled="cartStore.items.length === 0 || storeClosed"
+            :disabled="cartStore.items.length === 0 || storeClosed || orderStore.loading"
             @click="confirmOrder"
           >
             {{ t('confirmOrder') }}
@@ -164,6 +236,15 @@ const errorMessage = ref('')
 const storeClosed = ref(false)
 let statusTimer: number | null = null
 
+const fulfillmentType = ref<'DELIVERY' | 'PICKUP'>('DELIVERY')
+const orderNotes = ref('')
+
+// Idempotency key: generated once per checkout attempt and reused across
+// retries of the SAME attempt (e.g. a network error), so a resubmission
+// cannot create a duplicate order. Regenerated after success or when the
+// cart changes, since that represents a genuinely new order.
+const idempotencyKey = ref(crypto.randomUUID())
+
 const deliveryOptions = [
   { label: 'سكن الولاد الداخلي', value: 'سكن الولاد الداخلي', fee: 20 },
   { label: 'سكن البنات الداخلي', value: 'سكن البنات الداخلي', fee: 15 },
@@ -175,6 +256,7 @@ const showAddressError = ref(false)
 const shippingName = computed(() => authStore.currentUser?.full_name || '')
 
 const deliveryFee = computed(() => {
+  if (fulfillmentType.value === 'PICKUP') return 0
   const opt = deliveryOptions.find((o) => o.value === deliveryAddress.value)
   return opt ? opt.fee : 0
 })
@@ -197,9 +279,9 @@ const checkBusinessHours = async () => {
 }
 
 const confirmOrder = async () => {
-  if (cartStore.items.length === 0 || storeClosed.value) return
+  if (cartStore.items.length === 0 || storeClosed.value || orderStore.loading) return
 
-  if (!deliveryAddress.value) {
+  if (fulfillmentType.value === 'DELIVERY' && !deliveryAddress.value) {
     showAddressError.value = true
     errorMessage.value = localeStore.currentLocale === 'ar' 
       ? 'يرجى اختيار عنوان التوصيل أولاً'
@@ -217,17 +299,23 @@ const confirmOrder = async () => {
   }))
 
   try {
-    await orderStore.placeOrder(orderItems, deliveryAddress.value)
+    const addressToPass = fulfillmentType.value === 'DELIVERY' ? deliveryAddress.value : 'استلام من الصالة'
+    await orderStore.placeOrder(orderItems, addressToPass, fulfillmentType.value, orderNotes.value, idempotencyKey.value)
+    idempotencyKey.value = crypto.randomUUID()
     cartStore.clearCart()
     router.push('/orders')
   } catch (error: any) {
-    if (error.response && error.response.data && error.response.data.detail) {
-      errorMessage.value = error.response.data.detail
-      if (error.response.status === 403 || error.response.status === 409) {
-        storeClosed.value = true
-      }
+    const detail = error.response?.data?.detail
+    if (typeof detail === 'string') {
+      errorMessage.value = detail
+    } else if (Array.isArray(detail)) {
+      // FastAPI 422 validation errors: array of {loc, msg, type} objects.
+      errorMessage.value = detail.map((d: any) => d.msg || String(d)).join('. ')
     } else {
       errorMessage.value = t('failOrder')
+    }
+    if (error.response && (error.response.status === 403 || error.response.status === 409)) {
+      storeClosed.value = true
     }
   }
 }

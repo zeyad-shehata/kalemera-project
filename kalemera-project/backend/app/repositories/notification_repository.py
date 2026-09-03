@@ -16,11 +16,21 @@ class NotificationRepository:
         result = await db.execute(select(Notification).where(Notification.id == notification_id))
         return result.scalars().first()
 
-    async def create(self, db: AsyncSession, user_id: int, message: str) -> Notification:
+    async def create(self, db: AsyncSession, user_id: int, message: str, commit: bool = True) -> Notification:
+        """Create a notification.
+
+        commit=False lets callers fold notification creation into a larger
+        transaction (e.g. order placement) so it's committed atomically with
+        the rest of that unit of work, instead of each notification silently
+        committing the whole session early.
+        """
         notification = Notification(user_id=user_id, message=message, is_read=False)
         db.add(notification)
-        await db.commit()
-        await db.refresh(notification)
+        if commit:
+            await db.commit()
+            await db.refresh(notification)
+        else:
+            await db.flush()
         return notification
 
     async def mark_as_read(self, db: AsyncSession, notification: Notification) -> Notification:

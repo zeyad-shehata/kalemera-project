@@ -1,8 +1,8 @@
 import re
 from datetime import datetime
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field, ConfigDict, field_validator
-from app.models import UserRole, OrderStatus
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
+from app.models import UserRole, OrderStatus, FulfillmentType
 
 # Egyptian mobile numbers: exactly 11 digits starting with 01 (e.g. 010, 011, 012, 015)
 EGYPT_PHONE_REGEX = re.compile(r"^01[0-9]{9}$")
@@ -119,7 +119,26 @@ def calculate_delivery_fee(address: str | None) -> float:
 
 class OrderCreate(BaseModel):
     items: List[OrderItemCreate] = Field(..., min_length=1, max_length=50)
-    delivery_address: Literal["سكن الولاد الداخلي", "سكن البنات الداخلي", "الحي الراقي"] = Field(..., description="Delivery address is required")
+    fulfillment_type: FulfillmentType = Field(default=FulfillmentType.DELIVERY)
+    delivery_address: Optional[str] = Field(default=None, description="Delivery address (required for DELIVERY, ignored/auto-set for PICKUP)")
+    notes: Optional[str] = Field(default=None, max_length=500)
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Client-generated key; a repeated request with the same key returns the original order instead of creating a duplicate.",
+    )
+
+    @model_validator(mode="after")
+    def validate_fulfillment_and_address(self) -> "OrderCreate":
+        if self.fulfillment_type == FulfillmentType.DELIVERY:
+            if not self.delivery_address or self.delivery_address.strip() == "":
+                raise ValueError("Delivery address is required for delivery orders.")
+            if self.delivery_address not in ALLOWED_ADDRESSES:
+                raise ValueError(f"Invalid delivery address. Allowed addresses are: {', '.join(ALLOWED_ADDRESSES)}")
+        elif self.fulfillment_type == FulfillmentType.PICKUP:
+            if not self.delivery_address or self.delivery_address.strip() == "":
+                self.delivery_address = "استلام من الصالة"
+        return self
 
 
 class OrderItemResponse(BaseModel):
@@ -147,13 +166,16 @@ class OrderResponse(BaseModel):
     id: int
     user_id: int
     status: OrderStatus
+    fulfillment_type: FulfillmentType = FulfillmentType.DELIVERY
     total_price: float
     delivery_address: Optional[str] = None
     delivery_fee: float = 0.0
+    notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     items: List[OrderItemResponse]
     user: Optional[OrderUserResponse] = None
+    review: Optional["ReviewResponse"] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -189,3 +211,29 @@ class NotificationResponse(NotificationBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Review Schemas
+class ReviewCreate(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = Field(default=None, max_length=500)
+
+
+class ReviewResponse(BaseModel):
+    """Public-safe review representation. Never include customer phone,
+    address, or order notes here — only rating/comment/created_at."""
+    id: int
+    order_id: int
+    rating: int
+    comment: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ReviewAdminResponse(ReviewResponse):
+    """Admin-only view: adds the reviewer's name, still excludes phone/address/notes."""
+    reviewer_name: Optional[str] = None
+
+
+OrderResponse.model_rebuild()

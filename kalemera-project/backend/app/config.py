@@ -16,11 +16,14 @@ if not os.path.exists(ENV_FILE_PATH):
     ENV_FILE_PATH = os.path.join(BACKEND_DIR, ".env") if os.path.exists(os.path.join(BACKEND_DIR, ".env")) else None
 
 
+DEFAULT_DEV_SECRET_KEY = "development_secret_key_change_in_production_32_chars_min"
+
+
 class Settings(BaseSettings):
     # Environment & Security
     ENVIRONMENT: str = "development"  # "development" or "production"
     DATABASE_URL: str = "sqlite+aiosqlite:///./kalemera.db"
-    SECRET_KEY: str = "development_secret_key_change_in_production_32_chars_min"
+    SECRET_KEY: str = DEFAULT_DEV_SECRET_KEY
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     SECURE_COOKIES: bool = False
@@ -74,6 +77,43 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production" or os.getenv("VERCEL_ENV") == "production"
 
+    def has_cloud_storage(self) -> bool:
+        """Returns True if S3/R2/Cloud storage configuration is present."""
+        return bool(
+            self.S3_BUCKET_NAME
+            and (
+                (self.S3_ACCESS_KEY_ID and self.S3_SECRET_ACCESS_KEY)
+                or self.S3_PUBLIC_URL
+            )
+        )
 
 
 settings = Settings()
+
+
+def assert_persistent_storage_configured() -> None:
+    """Fail fast on boot if running on a serverless/ephemeral filesystem
+    (Vercel/Lambda) without cloud object storage configured. Local disk under
+    /tmp on these platforms does not survive redeploys or new instances, so an
+    unconfigured deployment would otherwise silently lose every uploaded image.
+    """
+    if IS_VERCEL and not settings.has_cloud_storage():
+        raise RuntimeError(
+            "Persistent storage is not configured for this serverless deployment. "
+            "Uploaded product images would be written to ephemeral /tmp storage and "
+            "lost on the next redeploy or cold start. Set S3_BUCKET_NAME plus either "
+            "(S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY) or S3_PUBLIC_URL as "
+            "environment variables (see .env.example) before deploying."
+        )
+
+
+def assert_production_secret_configured() -> None:
+    """Fail fast on boot if running in production with the placeholder dev
+    SECRET_KEY still in effect. This never logs the actual secret value.
+    """
+    if settings.is_production() and settings.SECRET_KEY == DEFAULT_DEV_SECRET_KEY:
+        raise RuntimeError(
+            "SECRET_KEY is still set to the development default in a production "
+            "environment. Set a unique, randomly generated SECRET_KEY via an "
+            "environment variable before deploying (see .env.example)."
+        )

@@ -1,9 +1,10 @@
 from typing import List, Optional
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Order, OrderItem, Product, User, UserRole, OrderStatus, Notification
+from app.models import Order, OrderItem, Product, User, UserRole, OrderStatus, Notification, FulfillmentType
 from app.repositories.order_repository import order_repository
 from app.repositories.product_repository import product_repository
 from app.repositories.notification_repository import notification_repository
@@ -34,18 +35,39 @@ class OrderService:
                 detail="Order must contain at least one item.",
             )
 
-        # Validate delivery address (backend validation - user cannot bypass with manual API call)
-        if not order_in.delivery_address or order_in.delivery_address.strip() == "":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Delivery address is required.",
+        # Idempotency: a repeated request carrying the same client-generated key
+        # (e.g. a double-tap on the Confirm button, or a retried network request)
+        # must return the original order rather than create a duplicate. This is
+        # the authoritative, server-side protection — the frontend disabling its
+        # submit button is only a UX nicety on top of this.
+        idempotency_key = order_in.idempotency_key
+        if idempotency_key:
+            existing_order = await order_repository.get_by_user_and_idempotency_key(
+                db, current_user.id, idempotency_key
             )
-        
-        if order_in.delivery_address not in ALLOWED_ADDRESSES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid delivery address. Allowed addresses are: {', '.join(ALLOWED_ADDRESSES)}",
-            )
+            if existing_order:
+                return existing_order
+
+        fulfillment_type = order_in.fulfillment_type or FulfillmentType.DELIVERY
+
+        # Validate delivery vs pickup rules server-side
+        if fulfillment_type == FulfillmentType.DELIVERY:
+            if not order_in.delivery_address or order_in.delivery_address.strip() == "":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Delivery address is required for delivery orders.",
+                )
+            if order_in.delivery_address not in ALLOWED_ADDRESSES:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid delivery address. Allowed addresses are: {', '.join(ALLOWED_ADDRESSES)}",
+                )
+            delivery_address = order_in.delivery_address.strip()
+            delivery_fee = calculate_delivery_fee(delivery_address)
+        else:
+            fulfillment_type = FulfillmentType.PICKUP
+            delivery_address = "استلام من الصالة"
+            delivery_fee = 0.0
 
         total_price = 0.0
         order_items_to_create = []
@@ -64,8 +86,23 @@ class OrderService:
                     detail=f"Not enough stock for product '{product.name}'. Available: {product.stock}, Requested: {item.quantity}.",
                 )
 
-            # Deduct stock
-            product.stock -= item.quantity
+            # Atomic, concurrency-safe stock decrement: a single UPDATE with a
+            # stock >= quantity guard, validated via rowcount. Under concurrent
+            # requests for the same product, the database serializes the
+            # conflicting UPDATEs (row-level lock) so only as many requests as
+            # there is real stock can ever succeed — this can never go negative,
+            # unlike a read-then-write ORM assignment which is a check-then-act
+            # race under concurrent load.
+            decrement_result = await db.execute(
+                update(Product)
+                .where(Product.id == product.id, Product.stock >= item.quantity)
+                .values(stock=Product.stock - item.quantity)
+            )
+            if decrement_result.rowcount != 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Not enough stock for product '{product.name}'. It may have just been purchased by another customer.",
+                )
 
             # Variant and price calculation
             variant_name_snapshot = None
@@ -104,36 +141,63 @@ class OrderService:
             )
             order_items_to_create.append(order_item)
 
-        # Calculate delivery fee server-side (authoritative)
-        delivery_fee = calculate_delivery_fee(order_in.delivery_address)
+        # Server-authoritative total
         total_price += delivery_fee
 
-        new_order = await order_repository.create(
-            db=db,
-            user_id=current_user.id,
-            total_price=total_price,
-            items=order_items_to_create,
-            delivery_address=order_in.delivery_address,
-            delivery_fee=delivery_fee,
-        )
+        try:
+            new_order = await order_repository.create(
+                db=db,
+                user_id=current_user.id,
+                fulfillment_type=fulfillment_type,
+                total_price=total_price,
+                items=order_items_to_create,
+                delivery_address=delivery_address,
+                delivery_fee=delivery_fee,
+                notes=order_in.notes,
+                idempotency_key=idempotency_key,
+            )
+        except IntegrityError:
+            # Concurrent duplicate submission with the same key raced us to the
+            # unique constraint; the other request won, so return its order.
+            await db.rollback()
+            if idempotency_key:
+                existing_order = await order_repository.get_by_user_and_idempotency_key(
+                    db, current_user.id, idempotency_key
+                )
+                if existing_order:
+                    return existing_order
+            raise
 
         # Notify buyer
+        if fulfillment_type == FulfillmentType.PICKUP:
+            buyer_msg = f"Order #{new_order.id} (Pickup from the Hall) has been placed successfully. Total: {total_price:.2f} EGP."
+        else:
+            buyer_msg = f"Order #{new_order.id} has been placed successfully. Subtotal: {total_price - delivery_fee:.2f} EGP, Delivery: {delivery_fee:.2f} EGP, Total: {total_price:.2f} EGP."
+
         await notification_repository.create(
             db=db,
             user_id=current_user.id,
-            message=f"Order #{new_order.id} has been placed successfully. Subtotal: {total_price - delivery_fee:.2f} EGP, Delivery: {delivery_fee:.2f} EGP, Total: {total_price:.2f} EGP."
+            message=buyer_msg,
+            commit=False,
         )
 
         # Notify all admins about the incoming new order
         admin_users_res = await db.execute(select(User).where(User.role == UserRole.ADMIN))
         admin_users = admin_users_res.scalars().all()
         customer_name = current_user.full_name or current_user.phone or "Customer"
+
+        if fulfillment_type == FulfillmentType.PICKUP:
+            admin_msg = f"طلب جديد #{new_order.id} من {customer_name} - الإجمالي: {total_price:.2f} EGP - استلام من الصالة"
+        else:
+            admin_msg = f"طلب جديد #{new_order.id} من {customer_name} - الإجمالي: {total_price:.2f} EGP - التوصيل: {delivery_address}"
+
         for admin_user in admin_users:
             if admin_user.id != current_user.id:
                 await notification_repository.create(
                     db=db,
                     user_id=admin_user.id,
-                    message=f"طلب جديد #{new_order.id} من {customer_name} - الإجمالي: {total_price:.2f} EGP - العنوان: {order_in.delivery_address}"
+                    message=admin_msg,
+                    commit=False,
                 )
 
         await db.commit()
@@ -182,6 +246,22 @@ class OrderService:
                 detail="You do not have permission to cancel this order.",
             )
 
+        if current_user.role != UserRole.ADMIN:
+            from datetime import datetime, timezone
+            # order.created_at is written via func.now(); on SQLite this is naive
+            # UTC, but on Postgres it reflects the session's configured timezone.
+            # Normalize both sides to timezone-aware UTC before comparing so this
+            # can't silently misbehave if the DB session timezone isn't UTC.
+            created_at = order.created_at
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            time_since_order = datetime.now(timezone.utc) - created_at
+            if time_since_order.total_seconds() > 600:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="لا يمكن إلغاء الطلب بعد مرور 10 دقائق من تأكيده.",
+                )
+
         if order.status != OrderStatus.PENDING:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -194,7 +274,8 @@ class OrderService:
         await notification_repository.create(
             db=db,
             user_id=order.user_id,
-            message=f"Order #{order.id} has been cancelled. Stock has been restored."
+            message=f"Order #{order.id} has been cancelled. Stock has been restored.",
+            commit=False,
         )
 
         await db.commit()
@@ -243,7 +324,8 @@ class OrderService:
         await notification_repository.create(
             db=db,
             user_id=order.user_id,
-            message=f"Order #{order.id} status has been updated to: {target.value}."
+            message=f"Order #{order.id} status has been updated to: {target.value}.",
+            commit=False,
         )
 
         await db.commit()

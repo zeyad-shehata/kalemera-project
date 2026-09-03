@@ -52,6 +52,7 @@
             <td>
               <v-img
                 :src="resolveImageUrl(product.image_path, 'https://placehold.co/100x75?text=Kalmera')"
+                :alt="product.name"
                 width="60"
                 height="45"
                 cover

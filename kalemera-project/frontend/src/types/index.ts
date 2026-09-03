@@ -44,13 +44,17 @@ export interface OrderUser {
   full_name: string
 }
 
+export type FulfillmentType = 'DELIVERY' | 'PICKUP'
+
 export interface Order {
   id: number
   user_id: number
   status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+  fulfillment_type?: FulfillmentType
   total_price: number
   delivery_address?: string | null
   delivery_fee?: number
+  notes?: string | null
   created_at: string
   updated_at: string
   items: OrderItem[]

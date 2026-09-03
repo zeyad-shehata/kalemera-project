@@ -27,17 +27,17 @@ const vuetify = createVuetify({
       kalmeraDark: {
         dark: true,
         colors: {
-          primary: '#D49B54',      // Warm Metallic Bronze Gold
-          secondary: '#D9531E',    // Flame Amber Orange
-          accent: '#C5853B',       // Deep Copper
-          background: '#0F0E0D',   // Deep Ebony Charcoal
-          surface: '#1A1715',      // Dark Bronze Card Surface
-          'surface-variant': '#26221D',
+          primary: '#FF7A00',      // Vibrant Calmera Logo Orange
+          secondary: '#2A2A2A',    // Deep Charcoal Noir
+          accent: '#FFA726',       // Bright Warm Amber
+          background: '#0F0F0F',   // Deep Charcoal Noir Background
+          surface: '#1A1A1A',      // Dark Card Surface
+          'surface-variant': '#262626',
           error: '#E74C3C',
           info: '#3498DB',
           success: '#2ECC71',
           warning: '#F39C12',
-          onPrimary: '#121110',
+          onPrimary: '#FFFFFF',
           onSecondary: '#FFFFFF',
           onBackground: '#F7F3ED',
           onSurface: '#F7F3ED',
@@ -46,12 +46,12 @@ const vuetify = createVuetify({
       kalmeraLight: {
         dark: false,
         colors: {
-          primary: '#A86D2C',      // Deep bronze gold for better contrast
-          secondary: '#D9531E',    // Flame Amber Orange
-          accent: '#C5853B',       // Deep copper
+          primary: '#E65100',      // Deep Calmera Orange for high contrast
+          secondary: '#212121',    // Dark Noir
+          accent: '#FF7A00',       // Vibrant Orange Accent
           background: '#FAF8F5',   // Very light warm cream
-          surface: '#FFFFFF',      // White card surface
-          'surface-variant': '#F4EFE6', // Warm cream container background
+          surface: '#FFFFFF',      // Pure White card surface
+          'surface-variant': '#F5F0E8', // Warm cream container background
           error: '#E74C3C',
           info: '#3498DB',
           success: '#2ECC71',

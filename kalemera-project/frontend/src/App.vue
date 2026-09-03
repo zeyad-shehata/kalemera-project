@@ -23,7 +23,7 @@
       <!-- Brand Logo & Title -->
       <router-link to="/" class="d-flex align-center text-decoration-none mr-2">
         <v-avatar size="44" :class="localeStore.currentLocale === 'ar' ? 'ml-3' : 'mr-3'" class="logo-avatar">
-          <v-img src="/logo.jpg" alt="Kalmera Logo" cover></v-img>
+          <v-img src="/logo.webp" alt="Calmera Logo" cover></v-img>
         </v-avatar>
         <div class="d-flex flex-column">
           <span class="font-weight-black text-h6 text-bronze-gradient line-height-tight">{{ localeStore.t('title') }}</span>
@@ -127,7 +127,7 @@
     <v-navigation-drawer v-model="drawer" temporary class="bg-surface border-r-bronze" :location="localeStore.currentLocale === 'ar' ? 'right' : 'left'">
       <!-- Drawer Header with Logo -->
       <div class="pa-4 text-center border-b-bronze bg-surface-variant">
-        <v-img src="/logo.jpg" alt="Logo" max-height="110" class="mx-auto mb-2 logo-badge-img" contain></v-img>
+        <v-img src="/logo.webp" alt="Calmera Logo" max-height="110" class="mx-auto mb-2 logo-badge-img" contain></v-img>
         <div class="text-h6 font-weight-black text-bronze-gradient">{{ localeStore.t('title') }}</div>
         <div class="text-caption text-copper-muted">{{ localeStore.t('subtitle') }}</div>
       </div>

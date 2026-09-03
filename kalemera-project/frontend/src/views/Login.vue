@@ -4,7 +4,7 @@
       <v-col cols="12" sm="8" md="5" lg="4" class="pa-0 pa-sm-3">
         <v-card class="elevation-16 rounded-xl pa-4 pa-sm-6 bg-surface border-bronze mx-auto" max-width="460">
           <v-card-item class="text-center">
-            <v-img src="/logo.jpg" alt="Logo" max-width="120" class="mx-auto mb-3 logo-badge-img" contain></v-img>
+            <v-img src="/logo.webp" alt="Calmera Logo" max-width="120" class="mx-auto mb-3 logo-badge-img" contain></v-img>
             <v-card-title class="text-h4 font-weight-black text-bronze-gradient mb-1">{{ t('login') }}</v-card-title>
             <v-card-subtitle class="text-copper-muted">{{ t('welcomeBackSubtitle') }}</v-card-subtitle>
           </v-card-item>
